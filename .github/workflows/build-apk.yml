@@ -25,6 +25,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Python 3.13 for Chaquopy
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Verify Python version
+        run: |
+          python3.13 --version
+          python3.13 -m pip --version
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

@@ -37,6 +37,9 @@ android {
 chaquopy {
     defaultConfig {
         version = "3.13"
+        // Chaquopy 17.x requires matching host Python for package installation.
+        // GitHub Actions installs Python 3.13 and adds python3.13 to PATH.
+        buildPython("python3.13")
         pip {
             // Web notebook backend
             install("flask")

@@ -104,7 +104,7 @@
         </div>
     </div>
     <div class="btn" style="margin-left:10px" onclick="toggleTheme()">🌙 Theme</div>
-    <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
+    <input type="file" id="file-input" accept=".ipynb,.json,application/json,application/x-ipynb+json" style="display:none" onchange="loadFromFile(event)">
 </div>
 
 <div class="container" id="notebook"></div>
@@ -247,12 +247,18 @@
             useCORS: true,
             logging: false
         }).then(canvas => {
-            const link = document.createElement("a");
-            link.download = `cell-${id}-analysis.png`;
-            link.href = canvas.toDataURL("image/png");
-            link.click();
+            const dataUrl = canvas.toDataURL("image/png");
+            const base64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
+            if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
+                window.AndroidDownloads.saveBase64File(`cell-${id}-analysis.png`, "image/png", base64);
+            } else {
+                const link = document.createElement("a");
+                link.download = `cell-${id}-analysis.png`;
+                link.href = dataUrl;
+                link.click();
+            }
             container.scrollLeft = originalScrollLeft; // Restore scroll position
-        });
+        }).catch(err => alert("Could not create output image: " + err));
     }
 
     function insertSymbol(sym) {
@@ -289,12 +295,42 @@
     
     function newNotebook() { if(confirm("Clear?")) { document.getElementById('notebook').innerHTML = ""; cellCount = 0; editors = {}; addNewCell(); } }
 
-    function saveToFile() { 
-        const codes = Object.values(editors).map(ed => ed.getValue());
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(codes)], {type: "application/json"}));
-        a.download = "notebook.json"; a.click();
+    function saveToFile() {
+        // Save using the standard Jupyter Notebook (.ipynb / nbformat 4) structure.
+        const cells = Object.values(editors).map(ed => ({
+            cell_type: "code",
+            execution_count: null,
+            metadata: {},
+            outputs: [],
+            source: ed.getValue().split("\n").map((line, index, all) =>
+                index < all.length - 1 ? line + "\n" : line
+            )
+        }));
+        const notebook = {
+            cells: cells,
+            metadata: {
+                kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
+                language_info: { name: "python", file_extension: ".py", mimetype: "text/x-python" }
+            },
+            nbformat: 4,
+            nbformat_minor: 5
+        };
+        const json = JSON.stringify(notebook, null, 2);
+        if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
+            const base64 = btoa(unescape(encodeURIComponent(json)));
+            window.AndroidDownloads.saveBase64File("notebook.ipynb", "application/x-ipynb+json", base64);
+        } else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([json], {type: "application/x-ipynb+json"}));
+            a.download = "notebook.ipynb"; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
     }
+
+    window.onNativeDownloadResult = function(success, message) {
+        if (success) alert(message || "File saved successfully");
+        else if (message && message !== "Save cancelled") alert(message);
+    };
     
     function loadFromFile(event) {
         const input = event.target;
@@ -303,9 +339,23 @@
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const codes = JSON.parse(e.target.result);
-                if (!Array.isArray(codes) || !codes.every(c => typeof c === "string")) {
-                    throw new Error("Unsupported notebook format. Please select a notebook.json file saved by this app.");
+                const parsed = JSON.parse(e.target.result);
+                let codes;
+                // Backward compatibility: the older app saved a JSON array of code strings.
+                if (Array.isArray(parsed) && parsed.every(c => typeof c === "string")) {
+                    codes = parsed;
+                } else if (parsed && typeof parsed === "object" && Array.isArray(parsed.cells)) {
+                    // Standard Jupyter .ipynb (nbformat 4): load code cells and ignore markdown cells.
+                    codes = parsed.cells
+                        .filter(cell => cell && cell.cell_type === "code")
+                        .map(cell => {
+                            const source = cell.source;
+                            if (Array.isArray(source)) return source.join("");
+                            if (typeof source === "string") return source;
+                            return "";
+                        });
+                } else {
+                    throw new Error("Unsupported format. Please select a valid .ipynb notebook or legacy .json file.");
                 }
                 document.getElementById('notebook').innerHTML = "";
                 cellCount = 0;
@@ -315,7 +365,7 @@
             } catch (err) {
                 alert("Could not open notebook: " + (err.message || "Invalid file"));
             } finally {
-                // Let the same file be selected again after an unsuccessful or successful open.
+                // Allow selecting the same file again.
                 input.value = "";
             }
         };

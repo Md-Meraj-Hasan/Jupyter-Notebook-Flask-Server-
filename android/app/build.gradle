@@ -59,6 +59,9 @@ chaquopy {
             install("scikit-learn==1.3.2")
             install("joblib==1.4.2")
             install("threadpoolctl==3.5.0")
+
+            // Statistical modeling (Chaquopy Android wheel for Python 3.10)
+            install("statsmodels==0.14.5")
 // Symbolic math and graph algorithms
             install("sympy")
             install("networkx")

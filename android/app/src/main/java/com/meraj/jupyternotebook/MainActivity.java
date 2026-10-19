@@ -9,6 +9,7 @@ import android.os.Looper;
 import android.graphics.Color;
 import android.view.View;
 import android.webkit.WebChromeClient;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient.FileChooserParams;
 import android.webkit.WebResourceRequest;
@@ -23,6 +24,8 @@ import com.chaquo.python.Python;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.io.OutputStream;
+import android.util.Base64;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -32,6 +35,43 @@ public class MainActivity extends Activity {
     private volatile boolean pageLoaded = false;
     private ValueCallback<Uri[]> filePathCallback;
     private static final int FILE_CHOOSER_REQUEST = 1001;
+    private static final int CREATE_DOCUMENT_REQUEST = 1002;
+    private byte[] pendingDownloadBytes;
+
+    /** Native bridge for downloads, because Android WebView does not reliably honor
+     *  HTMLAnchorElement.download for data/blob URLs. */
+    public final class AndroidDownloads {
+        @JavascriptInterface
+        public void saveBase64File(String filename, String mimeType, String base64Data) {
+            try {
+                byte[] decoded = Base64.decode(base64Data, Base64.DEFAULT);
+                String safeName = (filename == null || filename.trim().isEmpty()) ? "download" : filename;
+                safeName = safeName.replaceAll("[\\/:*?\"<>|]", "_");
+                final String finalName = safeName;
+                final String finalMime = (mimeType == null || mimeType.trim().isEmpty())
+                        ? "application/octet-stream" : mimeType;
+                handler.post(() -> {
+                    pendingDownloadBytes = decoded;
+                    Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType(finalMime);
+                    intent.putExtra(Intent.EXTRA_TITLE, finalName);
+                    try {
+                        startActivityForResult(intent, CREATE_DOCUMENT_REQUEST);
+                    } catch (Exception e) {
+                        pendingDownloadBytes = null;
+                        if (webView != null) webView.evaluateJavascript(
+                                "window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Cannot open Save dialog')", null);
+                    }
+                });
+            } catch (Exception e) {
+                handler.post(() -> {
+                    if (webView != null) webView.evaluateJavascript(
+                            "window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Could not prepare file')", null);
+                });
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +94,7 @@ public class MainActivity extends Activity {
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setAllowFileAccess(true);
         webView.getSettings().setAllowContentAccess(true);
+        webView.addJavascriptInterface(new AndroidDownloads(), "AndroidDownloads");
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -129,6 +170,25 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == CREATE_DOCUMENT_REQUEST) {
+            byte[] bytes = pendingDownloadBytes;
+            pendingDownloadBytes = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && bytes != null) {
+                Uri uri = data.getData();
+                try (OutputStream output = getContentResolver().openOutputStream(uri)) {
+                    if (output == null) throw new java.io.IOException("Unable to open selected destination");
+                    output.write(bytes);
+                    if (webView != null) webView.evaluateJavascript(
+                            "window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'File saved successfully')", null);
+                } catch (Exception e) {
+                    if (webView != null) webView.evaluateJavascript(
+                            "window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Could not save file')", null);
+                }
+            } else if (webView != null) {
+                webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Save cancelled')", null);
+            }
+            return;
+        }
         if (requestCode == FILE_CHOOSER_REQUEST) {
             if (filePathCallback != null) {
                 Uri[] results = null;

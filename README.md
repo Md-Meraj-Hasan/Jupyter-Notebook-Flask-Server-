@@ -8,7 +8,7 @@ This project packages the existing Flask + CodeMirror notebook UI into an Androi
 - Pandas DataFrame output and Matplotlib/Seaborn plotting (Agg backend).
 - Bundled CSV datasets.
 - Offline bundled numerical and data-science packages: NumPy, Pandas, SciPy, Matplotlib, Seaborn, Pillow.
-- Offline bundled ML packages: scikit-learn, joblib, threadpoolctl.
+- Offline bundled ML packages: scikit-learn, joblib, threadpoolctl, statsmodels 0.14.5 (plus its dependency `patsy`).
 - Additional packages: SymPy, NetworkX, OpenPyXL, XlsxWriter, xlrd, Requests, BeautifulSoup4, python-dateutil, pytz, packaging, tqdm.
 - Python 3.10 is selected to use current Android-compatible Chaquopy wheels, including scikit-learn.
 
@@ -31,11 +31,16 @@ This project packages the existing Flask + CodeMirror notebook UI into an Androi
 
 ## ML/Data Science package compatibility note
 
-This build uses Chaquopy Python 3.10 because its Android wheel repository includes SciPy and scikit-learn wheels for this Python version. The build pins a compatible set of NumPy, Pandas, SciPy, Matplotlib, Seaborn, scikit-learn, and statsmodels versions.
+This build uses Chaquopy Python 3.10 because its Android wheel repository includes SciPy and scikit-learn wheels for this Python version. The build pins a compatible set of NumPy, Pandas, SciPy, Matplotlib, Seaborn, scikit-learn, and statsmodels versions. `statsmodels==0.14.5` has an Android CPython 3.10 wheel in the Chaquopy package index.
 
 Important: some older native Android wheels may not work on devices using 16 KB memory pages. This package set is aimed at broad compatibility with standard Android devices (including Android 12 and earlier); test on the target phone before relying on it.
 
 
 ### Important build note
 
-The Android project is configured for Chaquopy Python 3.10. In GitHub Actions, `actions/setup-python` provides the matching executable as `python`; Gradle uses `buildPython("python")` so it does not depend on a `python3.10` executable alias. Upload the *contents* of this folder to the repository root, preserving `.github/workflows/` and `android/` paths. Do not upload this outer folder as an extra nested directory.
+The Android project is configured for Chaquopy Python 3.10. In GitHub Actions, `actions/setup-python@v5` installs Python 3.10 without pip caching (there is no requirements.txt or pyproject.toml). Gradle uses `buildPython("python")` so it does not depend on a `python3.10` executable alias. Upload the *contents* of this folder to the repository root, preserving `.github/workflows/` and `android/` paths. Do not upload this outer folder as an extra nested directory.
+
+## Android file actions
+- File → Open is wired to the Android system file picker through `WebChromeClient.onShowFileChooser`.
+- Output PNG download and notebook JSON save use Android's native Create Document dialog through the `AndroidDownloads` JavaScript bridge.
+- After building, test both actions on the target phone.

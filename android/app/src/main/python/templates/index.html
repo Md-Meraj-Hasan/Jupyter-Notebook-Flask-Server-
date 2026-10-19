@@ -46,6 +46,18 @@
         .dropdown-content div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: 13px; color: var(--menu-text); }
         .dropdown:hover .dropdown-content { display: block; }
 
+        .mode-switch { margin-left: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--cell-bg); color: var(--menu-text); padding: 7px 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        #coding-page { display:none; width:100%; min-height:calc(100vh - 48px); margin:0; padding:0 0 24px; box-sizing:border-box; }
+        .coding-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:50; }
+        .coding-toolbar button { border:1px solid var(--border-color); border-radius:6px; padding:8px 12px; background:var(--cell-bg); color:var(--text-main); font-weight:700; }
+        #script-editor { padding:0; }
+        #script-editor .CodeMirror { min-height:calc(100vh - 145px); height:calc(100vh - 145px); border:0; font-size:15px; }
+        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--bg-body); color:var(--text-main); overflow:auto; box-sizing:border-box; }
+        .output-page-toolbar { display:flex; align-items:center; gap:12px; padding:12px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:2; }
+        .back-output-btn { width:42px; height:42px; border:1px solid var(--border-color); border-radius:50%; background:var(--cell-bg); color:var(--text-main); font-size:24px; font-weight:bold; }
+        #console-output { white-space:pre-wrap; overflow-wrap:anywhere; min-height:45vh; max-height:none; overflow:auto; margin:12px; padding:14px; background:#111827; color:#d1fae5; font:14px/1.55 monospace; border-radius:8px; }
+        #console-input-row { display:none; gap:8px; padding:12px; margin:12px; background:var(--toolbar-bg); border:1px solid var(--border-color); border-radius:8px; }
+        #console-input { flex:1; min-width:0; padding:12px; font-size:16px; }
         .container { width: 95%; max-width: 1100px; margin: 20px auto; padding-bottom: 300px; display: flex; flex-direction: column; }
         .cell { margin-bottom: 15px; border: 1px solid var(--border-color); background: var(--cell-bg); overflow: hidden; position: relative; }
         .toolbar { display: flex; gap: 10px; padding: 5px 10px; background: var(--toolbar-bg); border-bottom: 1px solid var(--border-color); align-items: center; }
@@ -104,11 +116,34 @@
         </div>
     </div>
     <div class="btn" style="margin-left:10px" onclick="toggleTheme()">🌙 Theme</div>
+    <button class="mode-switch" id="mode-switch" onclick="toggleMode()" title="Switch between Notebook and Coding page">⌨️ Coding</button>
     <input type="file" id="file-input" accept=".ipynb,.json,application/json,application/x-ipynb+json" style="display:none" onchange="loadFromFile(event)">
 </div>
 
 <div class="container" id="notebook"></div>
 <button class="fab-add" id="fab-btn" onclick="addNewCell()" title="Add Cell">+</button>
+<div id="coding-page">
+  <div class="coding-toolbar">
+    <strong style="margin-right:auto">⌨️ Python Coding</strong>
+    <button onclick="runScript()">▶ Run</button>
+    <button onclick="toggleMode()" title="Return to Notebook">📒 Notebook</button>
+  </div>
+  <div id="script-editor"><textarea id="script-code">name = input("Enter your name: ")
+print("Hello", name)
+</textarea></div>
+</div>
+
+<div id="coding-output-page" aria-label="Python output page">
+  <div class="output-page-toolbar">
+    <button class="back-output-btn" onclick="backToCodingEditor()" title="Back to code" aria-label="Back to code">←</button>
+    <strong style="font-size:18px">▶ Python Output</strong>
+    <button style="margin-left:auto" onclick="clearConsole()">🧹 Clear</button>
+    <button onclick="cancelScript()">■ Stop</button>
+  </div>
+  <div style="font-weight:bold;margin:14px 12px 6px">Console Output</div>
+  <pre id="console-output">Output will appear here.</pre>
+  <div id="console-input-row"><input id="console-input" type="text" placeholder="Type input and press Enter"><button onclick="submitConsoleInput()">Send</button></div>
+</div>
 
 <div id="fixed-toolbar">
     <div class="symbol-row">
@@ -146,6 +181,11 @@
     let editors = {};
     let lastFocusedEditor = null;
     const initialHeight = window.innerHeight;
+    let currentMode = "notebook";
+    let scriptEditor = null;
+    let activeJobId = null;
+    let statusPollTimer = null;
+    let lastConsoleOutput = "";
 
     window.addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
 
@@ -283,6 +323,7 @@
         document.body.classList.toggle('night-mode');
         const isNight = document.body.classList.contains('night-mode');
         Object.values(editors).forEach(ed => ed.setOption("theme", isNight ? "material-darker" : "neo"));
+        if (scriptEditor) scriptEditor.setOption("theme", isNight ? "material-darker" : "neo");
         localStorage.setItem('theme', isNight ? 'night' : 'light');
     }
 
@@ -384,6 +425,113 @@
     function moveCellDown(id) {
         const cell = document.getElementById(`cell-${id}`);
         if (cell.nextElementSibling) { cell.parentNode.insertBefore(cell.nextElementSibling, cell); editors[id].refresh(); }
+    }
+
+
+    function toggleMode() {
+        const entering = currentMode === "notebook";
+        currentMode = entering ? "coding" : "notebook";
+        document.getElementById("notebook").style.display = entering ? "none" : "flex";
+        document.getElementById("fab-btn").style.display = entering ? "none" : "block";
+        document.getElementById("coding-page").style.display = entering ? "block" : "none";
+        document.getElementById("coding-output-page").style.display = "none";
+        document.getElementById("mode-switch").textContent = entering ? "📒 Notebook" : "⌨️ Coding";
+        document.getElementById("mode-switch").title = entering ? "Return to Notebook" : "Open Coding page";
+        if (entering && !scriptEditor) {
+            scriptEditor = CodeMirror.fromTextArea(document.getElementById("script-code"), {
+                mode: "python", theme: document.body.classList.contains("night-mode") ? "material-darker" : "neo",
+                lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
+            });
+            scriptEditor.setSize("100%", "48vh");
+            scriptEditor.on("focus", () => { lastFocusedEditor = scriptEditor; syncToolbar(); });
+        }
+        if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
+        window.scrollTo(0, 0);
+    }
+
+    function showCodingOutputPage() {
+        document.getElementById("coding-page").style.display = "none";
+        document.getElementById("coding-output-page").style.display = "block";
+        document.getElementById("console-output").textContent = "Starting Python…\n";
+        window.scrollTo(0, 0);
+    }
+
+    function backToCodingEditor() {
+        document.getElementById("coding-output-page").style.display = "none";
+        document.getElementById("coding-page").style.display = "block";
+        if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
+        window.scrollTo(0, 0);
+    }
+
+    async function runScript() {
+        if (!scriptEditor) toggleMode();
+        showCodingOutputPage();
+        const output = document.getElementById("console-output");
+        const inputRow = document.getElementById("console-input-row");
+        inputRow.style.display = "none";
+        output.textContent = "Starting Python…\n";
+        lastConsoleOutput = "";
+        try {
+            const res = await fetch('/code/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:scriptEditor.getValue()})});
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not start script");
+            activeJobId = data.job_id;
+            pollScriptStatus();
+        } catch (e) { output.textContent = "Error: " + e.message; }
+    }
+
+    async function pollScriptStatus() {
+        if (!activeJobId) return;
+        try {
+            const res = await fetch('/code/status/' + activeJobId);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Status request failed");
+            const output = document.getElementById("console-output");
+            if (data.output !== lastConsoleOutput) {
+                output.textContent = data.output || "";
+                lastConsoleOutput = data.output || "";
+                output.scrollTop = output.scrollHeight;
+            }
+            const inputRow = document.getElementById("console-input-row");
+            if (data.input_prompt !== null && data.input_prompt !== undefined) {
+                inputRow.style.display = "flex";
+                document.getElementById("console-input").placeholder = data.input_prompt || "Enter input";
+                document.getElementById("console-input").focus();
+            } else if (!data.running) inputRow.style.display = "none";
+            if (data.done) { activeJobId = null; return; }
+            statusPollTimer = setTimeout(pollScriptStatus, 250);
+        } catch (e) {
+            document.getElementById("console-output").textContent += "\nStatus error: " + e.message;
+            activeJobId = null;
+        }
+    }
+
+    async function submitConsoleInput() {
+        if (!activeJobId) return;
+        const field = document.getElementById("console-input");
+        const value = field.value;
+        field.value = "";
+        document.getElementById("console-input-row").style.display = "none";
+        try {
+            const res = await fetch('/code/input/' + activeJobId, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({value})});
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Input could not be sent");
+            if (statusPollTimer) clearTimeout(statusPollTimer);
+            pollScriptStatus();
+        } catch (e) { document.getElementById("console-output").textContent += "\nInput error: " + e.message; }
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+        const input = document.getElementById("console-input");
+        if (input) input.addEventListener("keydown", e => { if (e.key === "Enter") submitConsoleInput(); });
+    });
+
+    async function cancelScript() {
+        if (!activeJobId) return;
+        try { await fetch('/code/cancel/' + activeJobId, {method:'POST'}); } catch (_) {}
+    }
+    function clearConsole() {
+        document.getElementById("console-output").textContent = "Console cleared.";
+        lastConsoleOutput = "";
     }
 
     window.onload = () => {

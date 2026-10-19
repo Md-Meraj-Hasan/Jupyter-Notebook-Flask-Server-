@@ -14,6 +14,11 @@ matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans']
 import matplotlib.pyplot as plt
 import seaborn as sns
 import base64
+import threading
+import uuid
+import builtins
+import time
+import traceback
 plt.show = lambda *args, **kwargs: None
 
 app = Flask(__name__)
@@ -25,6 +30,108 @@ cells_globals = {
     'show': lambda *args, **kwargs: None
 
 }
+
+
+# Standalone coding-page execution jobs. Each job runs on a background thread so
+# input() can pause safely while the WebView displays a prompt and submits a reply.
+_code_jobs = {}
+_code_jobs_lock = threading.Lock()
+_code_globals = {"pd": pd, "plt": plt, "sns": sns, "__name__": "__main__"}
+
+class _JobOutput:
+    def __init__(self, job): self.job = job
+    def write(self, value):
+        if value:
+            with self.job["condition"]:
+                self.job["output"] += str(value)
+                self.job["condition"].notify_all()
+        return len(value) if value else 0
+    def flush(self): pass
+
+class _JobInput:
+    def __init__(self, job): self.job = job
+    def __call__(self, prompt=""):
+        with self.job["condition"]:
+            self.job["input_prompt"] = str(prompt)
+            self.job["input_value"] = None
+            self.job["input_ready"] = False
+            self.job["condition"].notify_all()
+            while not self.job["input_ready"] and not self.job["cancelled"]:
+                self.job["condition"].wait(timeout=0.5)
+            if self.job["cancelled"]:
+                raise KeyboardInterrupt("Execution cancelled")
+            value = self.job["input_value"]
+            self.job["input_prompt"] = None
+            self.job["input_ready"] = False
+            return value
+
+def _run_code_job(job, code):
+    out = _JobOutput(job)
+    local_builtins = dict(vars(builtins))
+    local_builtins["input"] = _JobInput(job)
+    # Keep variables across runs, as in an interactive Python console.
+    _code_globals["__builtins__"] = local_builtins
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            exec(compile(code, "<coding-page>", "exec"), _code_globals, _code_globals)
+    except KeyboardInterrupt:
+        out.write("\nExecution cancelled.\n")
+    except BaseException:
+        out.write(traceback.format_exc())
+    finally:
+        with job["condition"]:
+            job["running"] = False
+            job["done"] = True
+            job["input_prompt"] = None
+            job["condition"].notify_all()
+
+@app.route("/code/start", methods=["POST"])
+def code_start():
+    payload = request.get_json(silent=True) or {}
+    code = str(payload.get("code", ""))
+    if not code.strip(): return jsonify({"error": "Enter Python code first."}), 400
+    job_id = uuid.uuid4().hex
+    job = {"condition": threading.Condition(), "output": "", "input_prompt": None,
+           "input_value": None, "input_ready": False, "running": True,
+           "done": False, "cancelled": False, "created": time.time()}
+    with _code_jobs_lock:
+        # Avoid unbounded memory use in long-lived sessions.
+        for old_id in list(_code_jobs):
+            if _code_jobs[old_id].get("done") and time.time() - _code_jobs[old_id].get("created", 0) > 1800:
+                _code_jobs.pop(old_id, None)
+        _code_jobs[job_id] = job
+    threading.Thread(target=_run_code_job, args=(job, code), daemon=True, name="python-console-" + job_id[:8]).start()
+    return jsonify({"job_id": job_id})
+
+@app.route("/code/status/<job_id>", methods=["GET"])
+def code_status(job_id):
+    with _code_jobs_lock: job = _code_jobs.get(job_id)
+    if not job: return jsonify({"error": "Execution session not found."}), 404
+    with job["condition"]:
+        return jsonify({"output": job["output"], "input_prompt": job["input_prompt"],
+                        "running": job["running"], "done": job["done"]})
+
+@app.route("/code/input/<job_id>", methods=["POST"])
+def code_input(job_id):
+    with _code_jobs_lock: job = _code_jobs.get(job_id)
+    if not job: return jsonify({"error": "Execution session not found."}), 404
+    payload = request.get_json(silent=True) or {}
+    with job["condition"]:
+        if job["input_prompt"] is None: return jsonify({"error": "No input is currently requested."}), 409
+        job["input_value"] = str(payload.get("value", ""))
+        job["input_ready"] = True
+        job["output"] += str(payload.get("value", "")) + "\n"
+        job["condition"].notify_all()
+    return jsonify({"ok": True})
+
+@app.route("/code/cancel/<job_id>", methods=["POST"])
+def code_cancel(job_id):
+    with _code_jobs_lock: job = _code_jobs.get(job_id)
+    if not job: return jsonify({"ok": False}), 404
+    with job["condition"]:
+        job["cancelled"] = True
+        job["condition"].notify_all()
+    return jsonify({"ok": True})
 
 @app.route("/")
 def index():

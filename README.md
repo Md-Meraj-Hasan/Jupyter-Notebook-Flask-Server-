@@ -34,3 +34,8 @@ This project packages the existing Flask + CodeMirror notebook UI into an Androi
 This build uses Chaquopy Python 3.10 because its Android wheel repository includes SciPy and scikit-learn wheels for this Python version. The build pins a compatible set of NumPy, Pandas, SciPy, Matplotlib, Seaborn, scikit-learn, and statsmodels versions.
 
 Important: some older native Android wheels may not work on devices using 16 KB memory pages. This package set is aimed at broad compatibility with standard Android devices (including Android 12 and earlier); test on the target phone before relying on it.
+
+
+### Important build note
+
+The Android project is configured for Chaquopy Python 3.10. In GitHub Actions, `actions/setup-python` provides the matching executable as `python`; Gradle uses `buildPython("python")` so it does not depend on a `python3.10` executable alias. Upload the *contents* of this folder to the repository root, preserving `.github/workflows/` and `android/` paths. Do not upload this outer folder as an extra nested directory.

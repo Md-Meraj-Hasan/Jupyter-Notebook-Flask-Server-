@@ -33,8 +33,9 @@ jobs:
 
       - name: Verify Python version
         run: |
-          python3.10 --version
-          python3.10 -m pip --version
+          python --version
+          python -m pip --version
+          python -c "import sys; assert sys.version_info[:2] == (3, 10), sys.version"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Python Jupyter Pro - CD786</title>
+	 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/codemirror.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/material-darker.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/neo.min.css') }}">
+
+<script src="{{ url_for('static', filename='js/codemirror.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/python.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/html2canvas.min.js') }}"></script>
+
+
+    <style>
+        :root {
+            --bg-body: #ffffff; --cell-bg: #ffffff; --text-main: #212529;
+            --border-color: #cfcfcf; --toolbar-bg: #f7f7f7; 
+            --label-color: #000080; 
+            --out-bg: transparent; --out-text: #000000;
+            --symbol-bg: #d1d4d9;
+            --code-line: #2196F3;
+            --out-line: #4CAF50;
+            --run-color: #4CAF50;
+            --menu-text: #212529;
+            --terminal-bg: #ffffff; --terminal-text: #212529; --terminal-toolbar: #f7f7f7; --terminal-border: #cfcfcf; --terminal-muted: #5f6368; --terminal-accent: #1976d2;
+        }
+        .night-mode {
+            --bg-body: #1e1e1e; --cell-bg: #1e1e1e; --text-main: #d4d4d4;
+            --border-color: #3c3c3c; --toolbar-bg: #2d2d2d; 
+            --label-color: #00e5ff; 
+            --out-bg: transparent; --out-text: #d4d4d4;
+            --symbol-bg: #111111;
+            --code-line: #00bcd4;
+            --out-line: #8bc34a;
+            --run-color: #4CAF50;
+            --menu-text: #d4d4d4;
+            --terminal-bg: #1e1e1e; --terminal-text: #d4d4d4; --terminal-toolbar: #2d2d2d; --terminal-border: #3c3c3c; --terminal-muted: #b0b0b0; --terminal-accent: #8bc34a;
+        }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-body); color: var(--text-main); transition: 0.2s; min-height: 100vh; overflow-x: hidden; }
+        
+        .menu-bar { background: var(--toolbar-bg); padding: 5px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .dropdown { position: relative; }
+        .menu-item { cursor: pointer; font-size: 14px; padding: 8px 15px; display: flex; align-items: center; gap: 5px; color: var(--menu-text); }
+        .dropdown-content { display: none; position: absolute; background: var(--toolbar-bg); min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid var(--border-color); top: 100%; left: 0; z-index: 2000; }
+        .dropdown-content div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: 13px; color: var(--menu-text); }
+        .dropdown:hover .dropdown-content { display: block; }
+
+        .mode-switch { margin-left: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--cell-bg); color: var(--menu-text); padding: 7px 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        #coding-page { display:none; width:100%; min-height:calc(100vh - 48px); margin:0; padding:0 0 24px; box-sizing:border-box; }
+        #top-run-btn { display:none; border:1px solid var(--border-color); border-radius:8px; padding:7px 11px; background:var(--cell-bg); color:var(--run-color); font-weight:800; font-size:17px; cursor:pointer; }
+        .icon-btn { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 !important; border:1px solid var(--terminal-border) !important; border-radius:9px !important; background:var(--terminal-toolbar) !important; color:var(--terminal-text) !important; font-size:18px !important; }
+        .icon-btn.clear { color:var(--terminal-accent) !important; }
+        .icon-btn.stop { color:#e05252 !important; }
+        #script-editor { padding:0; }
+        #script-editor .CodeMirror { min-height:calc(100vh - 145px); height:calc(100vh - 145px); border:0; font-size:15px; }
+        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; }
+        .output-page-toolbar { display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--terminal-toolbar); border-bottom:1px solid var(--terminal-border); position:absolute; top:0; left:0; right:0; height:48px; box-sizing:border-box; z-index:2; }
+        .output-page-toolbar button { cursor:pointer; }
+        .back-output-btn { width:36px; height:36px; border-radius:9px !important; font-size:21px !important; }
+        #console-terminal { position:absolute; top:48px; left:0; right:0; bottom:0; padding:12px 10px calc(12px + env(safe-area-inset-bottom)); box-sizing:border-box; overflow:auto; background:var(--terminal-bg); color:var(--terminal-text); -webkit-overflow-scrolling:touch; }
+        #console-output { display:block; white-space:pre-wrap; overflow-wrap:anywhere; min-height:0; margin:0; padding:0; background:transparent; color:var(--terminal-text); font:16px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; border:0; border-radius:0; overflow:visible; }
+        #console-input-row { display:none; align-items:baseline; gap:0; margin:0; padding:0; border:0; background:transparent; color:var(--terminal-text); font:16px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+        #console-prompt { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--terminal-text); }
+        #console-input { flex:1; width:1px; min-width:0; margin:0; padding:0; border:0; outline:0; border-radius:0; background:transparent; color:var(--terminal-text); caret-color:var(--terminal-accent); font:inherit; box-shadow:none; }
+        #console-input::placeholder { color:transparent; }
+        #console-input-row:focus-within { outline:none; }
+        body.terminal-open { overflow:hidden; }
+        .container { width: 95%; max-width: 1100px; margin: 20px auto; padding-bottom: 300px; display: flex; flex-direction: column; }
+        .cell { margin-bottom: 15px; border: 1px solid var(--border-color); background: var(--cell-bg); overflow: hidden; position: relative; }
+        .toolbar { display: flex; gap: 10px; padding: 5px 10px; background: var(--toolbar-bg); border-bottom: 1px solid var(--border-color); align-items: center; }
+        
+        .cell-label { color: var(--label-color); font-weight: 900; font-family: 'Consolas', monospace; font-size: 15px; width: 85px; display: inline-block; }
+
+        table.dataframe { border-collapse: collapse; width: auto; min-width: 100%; margin-top: 10px; font-size: 13px; }
+        table.dataframe th, table.dataframe td { border: 1px solid var(--border-color); padding: 8px; text-align: left; color: var(--text-main); white-space: nowrap; }
+        table.dataframe th { background: var(--toolbar-bg); color: var(--label-color); font-weight: bold; }
+        
+        .btn-run { color: var(--run-color) !important; font-weight: bold !important; border:none; background:transparent; cursor:pointer; }
+        .btn-nav { font-size: 16px; padding: 0 5px; border:none; background:transparent; cursor:pointer; }
+        
+        .download-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+
+        .CodeMirror { height: auto; min-height: 50px; font-family: 'Consolas', monospace; font-size: 14px; border-top: 2px solid var(--code-line); }
+        .CodeMirror-linenumber { color: var(--label-color) !important; font-weight: bold; opacity: 0.9; }
+        .CodeMirror-lines { padding: 20px 0 !important; }
+
+        .output-container { padding: 15px; background: var(--out-bg); display: none; border-top: 2px solid var(--out-line); overflow-x: auto; margin-top: 2px; }
+        .output-area { color: var(--out-text); font-family: 'Consolas', monospace; font-size: 13px; text-align: left; width: fit-content; min-width: 100%; }
+
+        .fab-add { position: fixed; width: 50px; height: 50px; background: #4caf50; color: white; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 5000; right: 20px; bottom: 30px; }
+
+        #fixed-toolbar { position: fixed; left: 0; width: 100%; background: var(--symbol-bg); border-top: 1px solid var(--border-color); z-index: 1000000; padding: 4px 0; display: none; flex-direction: column; gap: 4px; }
+        .symbol-row { display: flex; align-items: center; padding: 0 4px; gap: 3px; width: 100%; box-sizing: border-box; }
+        .scroll-area { display: flex; overflow-x: auto; gap: 3px; scrollbar-width: none; flex-grow: 1; }
+        .scroll-area::-webkit-scrollbar { display: none; }
+        .symbol-btn { background: var(--toolbar-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 0; border-radius: 4px; font-family: monospace; font-weight: bold; cursor: pointer; min-width: 27px; text-align: center; flex-shrink: 0; font-size: 13px; }
+        .prime-btn { background: #546e7a; color: white; border: none; min-width: 44px; }
+        .nav-btn { background: #3949ab; color: white; border: none; min-width: 44px; }
+        .btn { cursor: pointer; border: none; padding: 4px 8px; border-radius: 4px; background: transparent; color: var(--text-main); font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="menu-bar">
+    <div class="dropdown">
+        <div class="menu-item">📁 File</div>
+        <div class="dropdown-content">
+            <div onclick="newNotebook()">📄 New</div>
+            <div onclick="document.getElementById('file-input').click()">📂 Open</div>
+            <div onclick="saveToFile()">⭐ Save</div>
+        </div>
+    </div>
+    <div class="btn" style="margin-left:10px" onclick="toggleTheme()">🌙 Theme</div>
+    <button id="top-run-btn" onclick="runScript()" title="Run Python code" aria-label="Run Python code">▶</button>
+    <button class="mode-switch" id="mode-switch" onclick="toggleMode()" title="Switch between Notebook and Coding page">⌨️ Coding</button>
+    <input type="file" id="file-input" accept=".ipynb,.json,application/json,application/x-ipynb+json" style="display:none" onchange="loadFromFile(event)">
+</div>
+
+<div class="container" id="notebook"></div>
+<button class="fab-add" id="fab-btn" onclick="addNewCell()" title="Add Cell">+</button>
+<div id="coding-page">
+  <div id="script-editor"><textarea id="script-code">name = input("Enter your name: ")
+print("Hello", name)
+</textarea></div>
+</div>
+
+<div id="coding-output-page" aria-label="Python output page">
+  <div class="output-page-toolbar">
+    <button class="back-output-btn icon-btn" onclick="backToCodingEditor()" title="Back to code" aria-label="Back to code">←</button>
+    <span style="margin-left:auto"></span>
+    <button class="icon-btn clear" onclick="clearConsole()" title="Clear output" aria-label="Clear output">🧹</button>
+    <button class="icon-btn stop" onclick="cancelScript()" title="Stop Python" aria-label="Stop Python">■</button>
+  </div>
+  <div id="console-terminal" role="log" aria-live="polite">
+    <pre id="console-output"></pre>
+    <div id="console-input-row"><span id="console-prompt"></span><input id="console-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Python input"></div>
+  </div>
+</div>
+
+<div id="fixed-toolbar">
+    <div class="symbol-row">
+        <button class="symbol-btn prime-btn" onmousedown="event.preventDefault(); insertSymbol('\t');">TAB</button>
+        <button class="symbol-btn prime-btn" onmousedown="event.preventDefault(); insertSymbol('=');">=</button>
+        <button class="symbol-btn nav-btn" onmousedown="event.preventDefault(); moveCursor('up');">▲</button>
+        <div class="scroll-area">
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('_');">_</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('\'\'');">' '</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('&quot;&quot;');">&quot; &quot;</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('()');">( )</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('[]');">[ ]</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('{}');">{ }</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol(':');">:</button>
+        </div>
+    </div>
+    <div class="symbol-row">
+        <button class="symbol-btn nav-btn" onmousedown="event.preventDefault(); moveCursor('left');">◀</button>
+        <button class="symbol-btn nav-btn" onmousedown="event.preventDefault(); moveCursor('right');">▶</button>
+        <button class="symbol-btn nav-btn" onmousedown="event.preventDefault(); moveCursor('down');">▼</button>
+        <div class="scroll-area">
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('<');">&lt;</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('>');">&gt;</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('+');">+</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('-');">-</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('*');">*</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol('/');">/</button>
+            <button class="symbol-btn" onmousedown="event.preventDefault(); insertSymbol(';');">;</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let cellCount = 0;
+    let editors = {};
+    let lastFocusedEditor = null;
+    const initialHeight = window.innerHeight;
+    let currentMode = "notebook";
+    let scriptEditor = null;
+    let activeJobId = null;
+    let statusPollTimer = null;
+    let lastConsoleOutput = "";
+
+    window.addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
+
+    const syncToolbar = () => {
+        const toolbar = document.getElementById('fixed-toolbar');
+        const fab = document.getElementById('fab-btn');
+        if (window.visualViewport) {
+            const viewport = window.visualViewport;
+            const isKeyboardOpen = viewport.height < initialHeight * 0.9;
+            if (isKeyboardOpen) {
+                toolbar.style.display = 'flex';
+                toolbar.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight) + 'px';
+                fab.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight - 70) + 'px';
+            } else {
+                toolbar.style.display = 'none';
+                fab.style.top = 'auto'; fab.style.bottom = '30px';
+            }
+        }
+    };
+
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncToolbar);
+        window.visualViewport.addEventListener('scroll', syncToolbar);
+    }
+
+    function addNewCell(content = "") {
+        cellCount++;
+        const id = cellCount;
+        const html = `
+            <div class="cell" id="cell-${id}">
+                <div class="toolbar">
+                    <span class="cell-label">In [${id}]:</span>
+                    <button class="btn-run" onclick="runCell(${id})">▶ Run</button>
+                    <button class="btn-nav" onclick="moveCellUp(${id})">⬆️</button>
+                    <button class="btn-nav" onclick="moveCellDown(${id})">⬇️</button>
+                    <button class="btn" onclick="toggleOutput(${id})">👁️</button>
+                    <button class="btn" onclick="deleteCell(${id})" style="margin-left:auto;color:#cc0000">🗑</button>
+                </div>
+                <textarea id="code-${id}">${content}</textarea>
+                <div id="out-cont-${id}" class="output-container">
+                    <button class="download-btn" onclick="downloadOutput(${id})" title="Download">⬇️</button>
+                    <div id="output-${id}" class="output-area"></div>
+                </div>
+            </div>`;
+        document.getElementById('notebook').insertAdjacentHTML('beforeend', html);
+        
+        const editor = CodeMirror.fromTextArea(document.getElementById(`code-${id}`), {
+            mode: "python", 
+            theme: document.body.classList.contains('night-mode') ? "material-darker" : "neo", 
+            lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
+        });
+        
+        editor.on("focus", () => { lastFocusedEditor = editor; syncToolbar(); });
+        editors[id] = editor;
+    }
+
+
+    async function runCell(id) {
+        const code = editors[id].getValue();
+        const outputDiv = document.getElementById(`output-${id}`);
+        const container = document.getElementById(`out-cont-${id}`);
+        container.style.display = "block";
+        outputDiv.innerHTML = "Executing...";
+        
+        try {
+            const response = await fetch('/run', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ code: code })
+            });
+            const data = await response.json();
+            let resultHtml = "";
+            if ((data.output || "").trim() !== "") resultHtml += `<pre style="margin:0; white-space: pre-wrap;">${data.output}</pre>`;
+            if (data.html) resultHtml += `<div style="margin-top:10px;">${data.html}</div>`;
+            if (data.final_val && data.final_val !== "None") {
+                resultHtml += `<div style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:8px; display:flex; gap:10px;">
+                               <span class="cell-label" style="font-size:14px;">Out [${id}]:</span> 
+                               <div style="flex-grow:1; white-space: pre-wrap;">${data.final_val}</div></div>`;
+            }
+            outputDiv.innerHTML = resultHtml || "<span style='color:gray;'>Executed</span>";
+        } catch (err) { outputDiv.innerHTML = "<span style='color:red;'>Error: " + err + "</span>"; }
+    }
+
+    // FIXED: Full Scroll Width Capture Logic
+    function downloadOutput(id) {
+        const outputElement = document.getElementById(`output-${id}`);
+        const container = document.getElementById(`out-cont-${id}`);
+        
+        // Temporarily allow overflow to measure full width
+        const originalWidth = outputElement.style.width;
+        const originalScrollLeft = container.scrollLeft;
+        
+        html2canvas(outputElement, {
+            backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-body'),
+            scale: 2,
+            scrollX: 0,
+            scrollY: 0,
+            width: outputElement.scrollWidth, // Captures full width
+            height: outputElement.scrollHeight,
+            useCORS: true,
+            logging: false
+        }).then(canvas => {
+            const dataUrl = canvas.toDataURL("image/png");
+            const base64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
+            if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
+                window.AndroidDownloads.saveBase64File(`cell-${id}-analysis.png`, "image/png", base64);
+            } else {
+                const link = document.createElement("a");
+                link.download = `cell-${id}-analysis.png`;
+                link.href = dataUrl;
+                link.click();
+            }
+            container.scrollLeft = originalScrollLeft; // Restore scroll position
+        }).catch(err => alert("Could not create output image: " + err));
+    }
+
+    function insertSymbol(sym) {
+        if (!lastFocusedEditor) return;
+        const doc = lastFocusedEditor.getDoc();
+        const cursor = doc.getCursor();
+        doc.replaceRange(sym, cursor);
+        lastFocusedEditor.focus();
+        if (['()', '[]', '{}', '""', "''"].includes(sym)) doc.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+    }
+
+    function moveCursor(dir) {
+        if (!lastFocusedEditor) return;
+        lastFocusedEditor.focus();
+        if (dir === 'up') lastFocusedEditor.execCommand("goLineUp");
+        else if (dir === 'down') lastFocusedEditor.execCommand("goLineDown");
+        else if (dir === 'left') lastFocusedEditor.execCommand("goCharLeft");
+        else if (dir === 'right') lastFocusedEditor.execCommand("goCharRight");
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('night-mode');
+        const isNight = document.body.classList.contains('night-mode');
+        Object.values(editors).forEach(ed => ed.setOption("theme", isNight ? "material-darker" : "neo"));
+        if (scriptEditor) scriptEditor.setOption("theme", isNight ? "material-darker" : "neo");
+        localStorage.setItem('theme', isNight ? 'night' : 'light');
+    }
+
+    function toggleOutput(id) {
+        const cont = document.getElementById(`out-cont-${id}`);
+        cont.style.display = cont.style.display === "none" ? "block" : "none";
+    }
+
+    function deleteCell(id) { if(confirm("Delete?")) { document.getElementById(`cell-${id}`).remove(); delete editors[id]; } }
+    
+    function newNotebook() { if(confirm("Clear?")) { document.getElementById('notebook').innerHTML = ""; cellCount = 0; editors = {}; addNewCell(); } }
+
+    function saveToFile() {
+        // Save using the standard Jupyter Notebook (.ipynb / nbformat 4) structure.
+        const cells = Object.values(editors).map(ed => ({
+            cell_type: "code",
+            execution_count: null,
+            metadata: {},
+            outputs: [],
+            source: ed.getValue().split("\n").map((line, index, all) =>
+                index < all.length - 1 ? line + "\n" : line
+            )
+        }));
+        const notebook = {
+            cells: cells,
+            metadata: {
+                kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
+                language_info: { name: "python", file_extension: ".py", mimetype: "text/x-python" }
+            },
+            nbformat: 4,
+            nbformat_minor: 5
+        };
+        const json = JSON.stringify(notebook, null, 2);
+        if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
+            const base64 = btoa(unescape(encodeURIComponent(json)));
+            window.AndroidDownloads.saveBase64File("notebook.ipynb", "application/x-ipynb+json", base64);
+        } else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([json], {type: "application/x-ipynb+json"}));
+            a.download = "notebook.ipynb"; a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+    }
+
+    window.onNativeDownloadResult = function(success, message) {
+        if (success) alert(message || "File saved successfully");
+        else if (message && message !== "Save cancelled") alert(message);
+    };
+    
+    function loadFromFile(event) {
+        const input = event.target;
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                let codes;
+                // Backward compatibility: the older app saved a JSON array of code strings.
+                if (Array.isArray(parsed) && parsed.every(c => typeof c === "string")) {
+                    codes = parsed;
+                } else if (parsed && typeof parsed === "object" && Array.isArray(parsed.cells)) {
+                    // Standard Jupyter .ipynb (nbformat 4): load code cells and ignore markdown cells.
+                    codes = parsed.cells
+                        .filter(cell => cell && cell.cell_type === "code")
+                        .map(cell => {
+                            const source = cell.source;
+                            if (Array.isArray(source)) return source.join("");
+                            if (typeof source === "string") return source;
+                            return "";
+                        });
+                } else {
+                    throw new Error("Unsupported format. Please select a valid .ipynb notebook or legacy .json file.");
+                }
+                document.getElementById('notebook').innerHTML = "";
+                cellCount = 0;
+                editors = {};
+                codes.forEach(c => addNewCell(c));
+                if (codes.length === 0) addNewCell();
+            } catch (err) {
+                alert("Could not open notebook: " + (err.message || "Invalid file"));
+            } finally {
+                // Allow selecting the same file again.
+                input.value = "";
+            }
+        };
+        reader.onerror = () => {
+            alert("Could not read the selected file.");
+            input.value = "";
+        };
+        reader.readAsText(file);
+    }
+
+    function moveCellUp(id) {
+        const cell = document.getElementById(`cell-${id}`);
+        if (cell.previousElementSibling) { cell.parentNode.insertBefore(cell, cell.previousElementSibling); editors[id].refresh(); }
+    }
+
+    function moveCellDown(id) {
+        const cell = document.getElementById(`cell-${id}`);
+        if (cell.nextElementSibling) { cell.parentNode.insertBefore(cell.nextElementSibling, cell); editors[id].refresh(); }
+    }
+
+
+    function toggleMode() {
+        const entering = currentMode === "notebook";
+        currentMode = entering ? "coding" : "notebook";
+        document.getElementById("notebook").style.display = entering ? "none" : "flex";
+        document.getElementById("fab-btn").style.display = entering ? "none" : "block";
+        document.getElementById("coding-page").style.display = entering ? "block" : "none";
+        document.getElementById("coding-output-page").style.display = "none";
+        document.getElementById("mode-switch").textContent = entering ? "📒 Notebook" : "⌨️ Coding";
+        document.getElementById("mode-switch").title = entering ? "Return to Notebook" : "Open Coding page";
+        document.getElementById("top-run-btn").style.display = entering ? "inline-flex" : "none";
+        if (entering && !scriptEditor) {
+            scriptEditor = CodeMirror.fromTextArea(document.getElementById("script-code"), {
+                mode: "python", theme: document.body.classList.contains("night-mode") ? "material-darker" : "neo",
+                lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
+            });
+            scriptEditor.setSize("100%", "48vh");
+            scriptEditor.on("focus", () => { lastFocusedEditor = scriptEditor; syncToolbar(); });
+        }
+        if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
+        window.scrollTo(0, 0);
+    }
+
+    function showCodingOutputPage() {
+        document.getElementById("coding-page").style.display = "none";
+        document.getElementById("coding-output-page").style.display = "block";
+        document.body.classList.add("terminal-open");
+        document.getElementById("console-output").textContent = "";
+        document.getElementById("console-input-row").style.display = "none";
+        window.scrollTo(0, 0);
+    }
+
+    function backToCodingEditor() {
+        document.getElementById("coding-output-page").style.display = "none";
+        document.body.classList.remove("terminal-open");
+        document.getElementById("coding-page").style.display = "block";
+        if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
+        window.scrollTo(0, 0);
+    }
+
+    async function runScript() {
+        if (!scriptEditor) toggleMode();
+        showCodingOutputPage();
+        const output = document.getElementById("console-output");
+        const inputRow = document.getElementById("console-input-row");
+        inputRow.style.display = "none";
+        output.textContent = "";
+        lastConsoleOutput = "";
+        try {
+            const res = await fetch('/code/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:scriptEditor.getValue()})});
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not start script");
+            activeJobId = data.job_id;
+            pollScriptStatus();
+        } catch (e) { output.textContent = "Error: " + e.message; }
+    }
+
+    async function pollScriptStatus() {
+        if (!activeJobId) return;
+        try {
+            const res = await fetch('/code/status/' + activeJobId);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Status request failed");
+            const output = document.getElementById("console-output");
+            if (data.output !== lastConsoleOutput) {
+                output.textContent = data.output || "";
+                lastConsoleOutput = data.output || "";
+                const terminal = document.getElementById("console-terminal");
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+            const inputRow = document.getElementById("console-input-row");
+            if (data.input_prompt !== null && data.input_prompt !== undefined) {
+                inputRow.style.display = "flex";
+                document.getElementById("console-prompt").textContent = data.input_prompt || "";
+                const field = document.getElementById("console-input");
+                if (document.activeElement !== field) field.focus();
+                const terminal = document.getElementById("console-terminal");
+                terminal.scrollTop = terminal.scrollHeight;
+            } else if (!data.running) inputRow.style.display = "none";
+            if (data.done) { activeJobId = null; return; }
+            statusPollTimer = setTimeout(pollScriptStatus, 250);
+        } catch (e) {
+            document.getElementById("console-output").textContent += "\nStatus error: " + e.message;
+            activeJobId = null;
+        }
+    }
+
+    async function submitConsoleInput() {
+        if (!activeJobId) return;
+        const field = document.getElementById("console-input");
+        const value = field.value;
+        field.value = "";
+        field.blur();
+        document.getElementById("console-input-row").style.display = "none";
+        try {
+            const res = await fetch('/code/input/' + activeJobId, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({value})});
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Input could not be sent");
+            if (statusPollTimer) clearTimeout(statusPollTimer);
+            pollScriptStatus();
+        } catch (e) { document.getElementById("console-output").textContent += "\nInput error: " + e.message; }
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+        const input = document.getElementById("console-input");
+        if (input) input.addEventListener("keydown", e => { if (e.key === "Enter") submitConsoleInput(); });
+    });
+
+    async function cancelScript() {
+        if (!activeJobId) return;
+        try { await fetch('/code/cancel/' + activeJobId, {method:'POST'}); } catch (_) {}
+    }
+    function clearConsole() {
+        document.getElementById("console-output").textContent = "";
+        lastConsoleOutput = "";
+    }
+
+    window.onload = () => {
+        if (localStorage.getItem('theme') === 'night') document.body.classList.add('night-mode');
+        addNewCell();
+    }
+</script>
+</body>
+</html>
+

@@ -297,13 +297,33 @@
     }
     
     function loadFromFile(event) {
+        const input = event.target;
+        const file = input.files && input.files[0];
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
-            const codes = JSON.parse(e.target.result);
-            document.getElementById('notebook').innerHTML = ""; cellCount = 0; editors = {};
-            codes.forEach(c => addNewCell(c));
+            try {
+                const codes = JSON.parse(e.target.result);
+                if (!Array.isArray(codes) || !codes.every(c => typeof c === "string")) {
+                    throw new Error("Unsupported notebook format. Please select a notebook.json file saved by this app.");
+                }
+                document.getElementById('notebook').innerHTML = "";
+                cellCount = 0;
+                editors = {};
+                codes.forEach(c => addNewCell(c));
+                if (codes.length === 0) addNewCell();
+            } catch (err) {
+                alert("Could not open notebook: " + (err.message || "Invalid file"));
+            } finally {
+                // Let the same file be selected again after an unsuccessful or successful open.
+                input.value = "";
+            }
         };
-        reader.readAsText(event.target.files[0]);
+        reader.onerror = () => {
+            alert("Could not read the selected file.");
+            input.value = "";
+        };
+        reader.readAsText(file);
     }
 
     function moveCellUp(id) {

@@ -1,0 +1,83 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.meraj.jupyternotebook'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.meraj.jupyternotebook'
+        minSdk 24
+        targetSdk 35
+        versionCode 2
+        versionName '1.0.1'
+
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+
+chaquopy {
+    defaultConfig {
+        version = "3.10"
+        // Python 3.10 is selected because Chaquopy provides Android wheels for SciPy and scikit-learn on this version.
+        // GitHub Actions setup-python places the matching Python 3.10 executable named "python" on PATH.
+        buildPython("python")
+        pip {
+            // Web notebook backend
+            install("flask")
+            install("waitress")
+
+            // Core data science and numerical computing
+            install("numpy==1.23.3")
+            install("pandas==2.1.3")
+            install("scipy==1.8.1")
+
+            // Visualization
+            install("matplotlib==3.6.0")
+            install("seaborn==0.13.2")
+            install("pillow==11.0.0")
+
+            // Machine learning (Android-compatible Chaquopy wheels)
+            install("scikit-learn==1.3.2")
+            install("joblib==1.4.2")
+            install("threadpoolctl==3.5.0")
+
+            // Statistical modeling (Chaquopy Android wheel for Python 3.10)
+            install("statsmodels==0.14.5")
+// Symbolic math and graph algorithms
+            install("sympy")
+            install("networkx")
+
+            // Spreadsheet/data exchange
+            install("openpyxl")
+            install("xlsxwriter")
+            install("xlrd")
+
+            // Common data utility packages
+            install("requests")
+            install("beautifulsoup4")
+            install("python-dateutil")
+            install("pytz")
+            install("packaging")
+            install("tqdm")
+        }
+    }
+}

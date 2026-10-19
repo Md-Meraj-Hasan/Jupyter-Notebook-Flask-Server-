@@ -10,7 +10,7 @@ This project packages the existing Flask + CodeMirror notebook UI into an Androi
 - Offline bundled numerical and data-science packages: NumPy, Pandas, SciPy, Matplotlib, Seaborn, Pillow.
 - Offline bundled ML packages: scikit-learn, joblib, threadpoolctl.
 - Additional packages: SymPy, NetworkX, OpenPyXL, XlsxWriter, xlrd, Requests, BeautifulSoup4, python-dateutil, pytz, packaging, tqdm.
-- Python 3.13 is selected to use current Android-compatible Chaquopy wheels, including scikit-learn.
+- Python 3.10 is selected to use current Android-compatible Chaquopy wheels, including scikit-learn.
 
 ## Build APK with GitHub Actions
 1. Extract this ZIP.
@@ -27,3 +27,10 @@ This project packages the existing Flask + CodeMirror notebook UI into an Androi
 - The larger scientific packages can make the APK large and the first GitHub Actions build slower. The build runner needs internet to download dependencies, but the installed package set is intended to run offline.
 - Chaquopy package compatibility and Android device behavior must be confirmed by a successful GitHub Actions build and on-device test. The original UI and Python endpoint are reused, but Android file-picker/download behavior can differ from a desktop browser.
 - The app WebView only allows navigation to its own `127.0.0.1`/`localhost` notebook server. No remote backend is configured.
+
+
+## ML/Data Science package compatibility note
+
+This build uses Chaquopy Python 3.10 because its Android wheel repository includes SciPy and scikit-learn wheels for this Python version. The build pins a compatible set of NumPy, Pandas, SciPy, Matplotlib, Seaborn, scikit-learn, and statsmodels versions.
+
+Important: some older native Android wheels may not work on devices using 16 KB memory pages. This package set is aimed at broad compatibility with standard Android devices (including Android 12 and earlier); test on the target phone before relying on it.

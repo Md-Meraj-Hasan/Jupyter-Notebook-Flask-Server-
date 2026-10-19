@@ -1,0 +1,78 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.meraj.jupyternotebook'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.meraj.jupyternotebook'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+
+chaquopy {
+    defaultConfig {
+        version = "3.13"
+        pip {
+            // Web notebook backend
+            install("flask")
+            install("waitress")
+
+            // Core data science and numerical computing
+            install("numpy")
+            install("pandas")
+            install("scipy")
+
+            // Visualization
+            install("matplotlib")
+            install("seaborn")
+            install("pillow")
+
+            // Machine learning (Android-compatible Chaquopy wheels)
+            install("scikit-learn")
+            install("joblib")
+            install("threadpoolctl")
+
+            // Symbolic math and graph algorithms
+            install("sympy")
+            install("networkx")
+
+            // Spreadsheet/data exchange
+            install("openpyxl")
+            install("xlsxwriter")
+            install("xlrd")
+
+            // Common data utility packages
+            install("requests")
+            install("beautifulsoup4")
+            install("python-dateutil")
+            install("pytz")
+            install("packaging")
+            install("tqdm")
+        }
+    }
+}

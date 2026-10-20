@@ -11,6 +11,47 @@
 
 <script src="{{ url_for('static', filename='js/codemirror.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/python.min.js') }}"></script>
+<script>
+/* Offline HTML/CSS tokenizers for the bundled CodeMirror 5 editor. */
+(function(){
+  if (!window.CodeMirror) return;
+  CodeMirror.defineMode("bright-html", function(){
+    return {token:function(stream){
+      if(stream.match(/^\s+/)) return null;
+      if(stream.match(/^<!--[\s\S]*?-->/)) return "comment";
+      if(stream.match(/^<!--/)){ stream.skipToEnd(); return "comment"; }
+      if(stream.match(/^<![^>]*>/)) return "meta";
+      if(stream.match(/^<\/?/)){ stream.eatWhile(/[\w:-]/); return "tag"; }
+      if(stream.match(/^\/>|^>/)) return "bracket";
+      if(stream.match(/^[\w:-]+(?=\s*=)/)) return "attribute";
+      if(stream.match(/^=/)) return "operator";
+      if(stream.match(/^"[^\"]*"|^'[^']*'/)) return "string";
+      if(stream.match(/^&[\w#]+;/)) return "atom";
+      stream.next(); return null;
+    }};
+  });
+  CodeMirror.defineMIME("text/html", "bright-html");
+  CodeMirror.defineMode("css", function(){
+    return {startState:function(){return {inComment:false,inString:null,inValue:false};}, token:function(stream,state){
+      if(state.inComment){ if(stream.skipTo("*/")){stream.match("*/");state.inComment=false;}else stream.skipToEnd(); return "comment"; }
+      if(state.inString){ while(!stream.eol()){var ch=stream.next(); if(ch===state.inString){state.inString=null;break;} if(ch==="\\") stream.next();} return "string"; }
+      if(stream.eatSpace()) return null;
+      if(stream.match("/*")){state.inComment=true;return "comment";}
+      var ch=stream.peek();
+      if(ch==='"'||ch==="'"){state.inString=stream.next();return "string";}
+      if(stream.match(/^#[0-9a-fA-F]{3,8}\b/)) return "number";
+      if(stream.match(/^[+-]?(?:\d*\.)?\d+(?:%|[a-zA-Z]+)?/)) return "number";
+      if(stream.match(/^[\w-]+(?=\s*:)/)) return "property";
+      if(stream.match(/^:[\w-]+/)) return "atom";
+      if(stream.match(/^[.#][\w-]+/)) return "qualifier";
+      if(stream.match(/^[\w-]+/)) return state.inValue ? "string-2" : "tag";
+      if(stream.match(/[{}:;,()>+~]/)){if(stream.current()==="{")state.inValue=false;if(stream.current()===";")state.inValue=false;if(stream.current()==="{")return "bracket";if(stream.current()==="}")return "bracket";if(stream.current()===" :")state.inValue=true; if(stream.current()===" :")return "operator"; if(stream.current()===":")state.inValue=true; return "operator";}
+      stream.next();return null;
+    }};
+  });
+})();
+</script>
+
 <script src="{{ url_for('static', filename='js/html2canvas.min.js') }}"></script>
 
 
@@ -39,7 +80,7 @@
             --menu-text: #d4d4d4;
             --terminal-bg: #1e1e1e; --terminal-text: #d4d4d4; --terminal-toolbar: #2d2d2d; --terminal-border: #3c3c3c; --terminal-muted: #b0b0b0; --terminal-accent: #8bc34a;
         }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-body); color: var(--text-main); transition: 0.2s; min-height: 100vh; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-body); color: var(--text-main); transition: 0.2s; min-height: 100vh; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         
         .menu-bar { background: var(--toolbar-bg); padding: 5px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; position: sticky; top: 0; z-index: 1000; }
         .dropdown { position: relative; }
@@ -47,22 +88,28 @@
         .dropdown-content { display: none; position: absolute; background: var(--toolbar-bg); min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid var(--border-color); top: 100%; left: 0; z-index: 2000; }
         .dropdown-content div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: 13px; color: var(--menu-text); }
         .dropdown:hover .dropdown-content { display: block; }
+        .mode-dropdown .mode-menu { left:auto; right:0; min-width:165px; }
+        .mode-dropdown .mode-menu div { white-space:nowrap; }
 
         .mode-switch { margin-left: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--cell-bg); color: var(--menu-text); padding: 7px 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
-        #coding-page { display:none; width:100%; min-height:calc(100vh - 48px); margin:0; padding:0 0 24px; box-sizing:border-box; }
+        #coding-page { display:none; width:100%; min-height:calc(100vh - 48px); margin:0; padding:0 0 calc(24px + env(safe-area-inset-bottom)); box-sizing:border-box; overflow:visible; }
         #top-run-btn { display:none; border:1px solid var(--border-color); border-radius:8px; padding:7px 11px; background:var(--cell-bg); color:var(--run-color); font-weight:800; font-size:17px; cursor:pointer; }
         .icon-btn { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 !important; border:1px solid var(--terminal-border) !important; border-radius:9px !important; background:var(--terminal-toolbar) !important; color:var(--terminal-text) !important; font-size:18px !important; }
         .icon-btn.clear { color:var(--terminal-accent) !important; }
         .icon-btn.stop { color:#e05252 !important; }
         #script-editor, #web-editor { padding:0; }
-        #script-editor .CodeMirror, #web-editor .CodeMirror { min-height:calc(100vh - 205px); height:calc(100vh - 205px); border:0; font-size:15px; }
+        #script-editor .CodeMirror, #web-editor .CodeMirror { min-height:calc(100vh - 205px); height:auto !important; border:0; font-size:15px; overflow:visible; }
+        #script-editor .CodeMirror-scroll, #web-editor .CodeMirror-scroll { overflow-x:auto !important; overflow-y:hidden !important; min-height:calc(100vh - 205px); }
+        #notebook { overflow:visible; min-height:calc(100vh - 60px); }
+        .output-container { max-height:none; overflow-x:auto; overflow-y:visible; }
+        .web-preview-frame { overflow:auto; -webkit-overflow-scrolling:touch; }
         .coding-language-tabs { display:flex; gap:8px; padding:10px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:5; }
         .coding-language-tab { flex:1; padding:10px 6px; border:1px solid var(--border-color); border-radius:9px; background:var(--cell-bg); color:var(--text-main); font-weight:700; font-size:14px; }
         .coding-language-tab.active { background:#1976d2; border-color:#1976d2; color:#fff; }
         #coding-output-page.web-output #console-terminal { display:none; }
-        #coding-web-preview { display:none; position:absolute; top:48px; left:0; right:0; bottom:0; width:100%; height:calc(100% - 48px); border:0; background:#fff; }
+        #coding-web-preview { display:none; position:absolute; top:48px; left:0; right:0; bottom:0; width:100%; height:calc(100% - 48px); border:0; background:#fff; overflow:auto; -webkit-overflow-scrolling:touch; }
         #coding-output-page.web-output #coding-web-preview { display:block; }
-        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; }
+        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; min-height:100%; }
         .output-page-toolbar { display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--terminal-toolbar); border-bottom:1px solid var(--terminal-border); position:absolute; top:0; left:0; right:0; height:48px; box-sizing:border-box; z-index:2; }
         .output-page-toolbar button { cursor:pointer; }
         .back-output-btn { width:36px; height:36px; border-radius:9px !important; font-size:21px !important; }
@@ -107,7 +154,6 @@
 
         .output-container { padding: 15px; background: var(--out-bg); display: none; border-top: 2px solid var(--out-line); overflow-x: auto; margin-top: 2px; }
         .output-area { color: var(--out-text); font-family: 'Consolas', monospace; font-size: 13px; text-align: left; width: fit-content; min-width: 100%; }
-        .cell-language { margin-left:auto; max-width:110px; border:1px solid var(--border-color); border-radius:6px; padding:5px 6px; background:var(--cell-bg); color:var(--text-main); font-size:12px; }
         .web-preview-frame { display:block; width:100%; min-height:260px; height:360px; border:1px solid var(--border-color); border-radius:6px; background:#fff; }
         .web-preview-caption { font:12px/1.4 sans-serif; color:var(--terminal-muted); margin:0 0 6px; }
 
@@ -122,7 +168,80 @@
         .prime-btn { background: #546e7a; color: white; border: none; min-width: 44px; }
         .nav-btn { background: #3949ab; color: white; border: none; min-width: 44px; }
         .btn { cursor: pointer; border: none; padding: 4px 8px; border-radius: 4px; background: transparent; color: var(--text-main); font-size: 13px; }
-    </style>
+    
+        /* v1.0.8: verified scroll overrides */
+        html, body { min-height:100%; height:auto; overflow-x:hidden !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch; }
+        #notebook, #coding-page { height:auto !important; min-height:calc(100vh - 60px); overflow:visible !important; }
+        #script-editor .CodeMirror, #web-editor .CodeMirror { height:auto !important; min-height:calc(100vh - 205px); overflow:visible !important; }
+        #script-editor .CodeMirror-scroll, #web-editor .CodeMirror-scroll { height:auto !important; max-height:none !important; min-height:calc(100vh - 205px); overflow-x:auto !important; overflow-y:hidden !important; }
+        .output-container { max-height:none !important; overflow-x:auto !important; overflow-y:visible !important; }
+        #coding-output-page { overflow:hidden !important; }
+        #coding-output-page #console-terminal { overflow-x:hidden !important; overflow-y:auto !important; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
+        #coding-web-preview { overflow:auto !important; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+
+        /* v1.0.9: fix CodeMirror internal vertical scrolling for long source files */
+        #script-editor .CodeMirror,
+        #web-editor .CodeMirror {
+            height: calc(100dvh - 235px) !important;
+            min-height: 220px !important;
+            max-height: calc(100dvh - 235px) !important;
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+        }
+        #script-editor .CodeMirror-scroll,
+        #web-editor .CodeMirror-scroll {
+            height: 100% !important;
+            min-height: 0 !important;
+            max-height: 100% !important;
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            touch-action: pan-x pan-y;
+        }
+        #script-editor .CodeMirror-sizer,
+        #web-editor .CodeMirror-sizer {
+            min-height: 100% !important;
+        }
+        #script-editor .CodeMirror-vscrollbar,
+        #web-editor .CodeMirror-vscrollbar {
+            overflow-y: scroll !important;
+        }
+
+
+        /* v1.1.0: high-contrast, classic Jupyter-inspired syntax palette */
+        .CodeMirror { color:#202124 !important; background:#ffffff !important; }
+        .CodeMirror-gutters { background:#f7f7f7 !important; border-right:1px solid #d6d6d6 !important; }
+        .CodeMirror-linenumber { color:#555b66 !important; opacity:1 !important; }
+        .cm-s-neo .cm-keyword, .cm-s-material-darker .cm-keyword { color:#08752c !important; font-weight:700 !important; }
+        .cm-s-neo .cm-atom, .cm-s-material-darker .cm-atom { color:#7b1fa2 !important; font-weight:600 !important; }
+        .cm-s-neo .cm-number, .cm-s-material-darker .cm-number { color:#7b1fa2 !important; }
+        .cm-s-neo .cm-def, .cm-s-material-darker .cm-def { color:#005cc5 !important; font-weight:600 !important; }
+        .cm-s-neo .cm-variable, .cm-s-material-darker .cm-variable { color:#202124 !important; }
+        .cm-s-neo .cm-variable-2, .cm-s-material-darker .cm-variable-2 { color:#005cc5 !important; }
+        .cm-s-neo .cm-variable-3, .cm-s-material-darker .cm-variable-3 { color:#7b1fa2 !important; }
+        .cm-s-neo .cm-property, .cm-s-material-darker .cm-property { color:#9a3412 !important; font-weight:600 !important; }
+        .cm-s-neo .cm-operator, .cm-s-material-darker .cm-operator { color:#444b55 !important; }
+        .cm-s-neo .cm-string, .cm-s-material-darker .cm-string { color:#b31d28 !important; }
+        .cm-s-neo .cm-string-2, .cm-s-material-darker .cm-string-2 { color:#b31d28 !important; }
+        .cm-s-neo .cm-comment, .cm-s-material-darker .cm-comment { color:#006b68 !important; font-style:italic !important; }
+        .cm-s-neo .cm-builtin, .cm-s-material-darker .cm-builtin { color:#005cc5 !important; }
+        .cm-s-neo .cm-tag, .cm-s-material-darker .cm-tag { color:#0759a5 !important; font-weight:700 !important; }
+        .cm-s-neo .cm-attribute, .cm-s-material-darker .cm-attribute { color:#8a4600 !important; font-weight:600 !important; }
+        .cm-s-neo .cm-bracket, .cm-s-material-darker .cm-bracket { color:#424a53 !important; }
+        .cm-s-neo .cm-qualifier, .cm-s-material-darker .cm-qualifier { color:#7b1fa2 !important; }
+        .cm-s-neo .cm-builtin, .cm-s-material-darker .cm-builtin { color:#005cc5 !important; }
+        .night-mode .CodeMirror { color:#e6edf3 !important; background:#202124 !important; }
+        .night-mode .CodeMirror-gutters { background:#292b2f !important; border-right-color:#484b50 !important; }
+        .night-mode .CodeMirror-linenumber { color:#aeb6c2 !important; }
+        .night-mode .cm-s-material-darker .cm-keyword { color:#7ee787 !important; }
+        .night-mode .cm-s-material-darker .cm-string, .night-mode .cm-s-material-darker .cm-string-2 { color:#ff7b72 !important; }
+        .night-mode .cm-s-material-darker .cm-comment { color:#8b949e !important; }
+        .night-mode .cm-s-material-darker .cm-def, .night-mode .cm-s-material-darker .cm-variable-2, .night-mode .cm-s-material-darker .cm-tag { color:#79c0ff !important; }
+        .night-mode .cm-s-material-darker .cm-property, .night-mode .cm-s-material-darker .cm-attribute { color:#ffa657 !important; }
+
+</style>
 </head>
 <body>
 
@@ -131,22 +250,29 @@
         <div class="menu-item">📁 File</div>
         <div class="dropdown-content">
             <div onclick="newNotebook()">📄 New</div>
-            <div onclick="document.getElementById('file-input').click()">📂 Open</div>
-            <div onclick="saveToFile()">⭐ Save</div>
+            <div onclick="openCurrentFile()">📂 Open</div>
+            <div onclick="saveCurrentFile(false)">💾 Save</div>
+            <div onclick="saveCurrentFile(true)">📝 Save As</div>
         </div>
     </div>
     <div class="btn" style="margin-left:10px" onclick="toggleTheme()">🌙 Theme</div>
-    <button id="top-run-btn" onclick="runScript()" title="Run Python code" aria-label="Run Python code">▶</button>
-    <button class="mode-switch" id="mode-switch" onclick="toggleMode()" title="Switch between Notebook and Coding page">⌨️ Coding</button>
-    <input type="file" id="file-input" accept=".ipynb,.json,application/json,application/x-ipynb+json" style="display:none" onchange="loadFromFile(event)">
+    <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶</button>
+    <div class="dropdown mode-dropdown">
+      <button class="mode-switch" id="mode-switch" onclick="toggleModeMenu(event)" title="Choose workspace">📒 Notebook ▾</button>
+      <div class="dropdown-content mode-menu" id="mode-menu">
+        <div onclick="selectWorkspace('notebook')">📒 Notebook</div>
+        <div onclick="selectWorkspace('python')">🐍 Python</div>
+        <div onclick="selectWorkspace('web')">🌐 HTML &amp; CSS</div>
+      </div>
+    </div>
+    <input type="file" id="file-input" accept=".ipynb,.json,.py,.html,.htm,.css,text/plain,text/html,application/json,application/x-ipynb+json" style="display:none" onchange="loadCurrentFile(event)">
 </div>
 
 <div class="container" id="notebook"></div>
 <button class="fab-add" id="fab-btn" onclick="addNewCell()" title="Add Cell">+</button>
 <div id="coding-page">
   <div class="coding-language-tabs" role="tablist" aria-label="Coding language">
-    <button class="coding-language-tab active" id="lang-python" onclick="selectCodingLanguage('python')">Python</button>
-    <button class="coding-language-tab" id="lang-html" onclick="selectCodingLanguage('html')">HTML</button>
+    <button class="coding-language-tab active" id="lang-html" onclick="selectCodingLanguage('html')">HTML</button>
     <button class="coding-language-tab" id="lang-css" onclick="selectCodingLanguage('css')">CSS</button>
   </div>
   <div id="script-editor"><textarea id="script-code">name = input("Enter your name: ")
@@ -210,6 +336,8 @@ print("Hello", name)
     let activeJobId = null;
     let statusPollTimer = null;
     let lastConsoleOutput = "";
+    let currentWorkspace = "notebook";
+    let currentFileName = "";
 
     window.addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
 
@@ -247,11 +375,6 @@ print("Hello", name)
                     <button class="btn-nav" onclick="moveCellUp(${id})">⬆️</button>
                     <button class="btn-nav" onclick="moveCellDown(${id})">⬇️</button>
                     <button class="btn" onclick="toggleOutput(${id})">👁️</button>
-                    <select class="cell-language" aria-label="Cell language" onchange="changeCellLanguage(${id}, this.value)">
-                        <option value="python" ${safeLanguage === "python" ? "selected" : ""}>Python</option>
-                        <option value="html" ${safeLanguage === "html" ? "selected" : ""}>HTML</option>
-                        <option value="css" ${safeLanguage === "css" ? "selected" : ""}>CSS</option>
-                    </select>
                     <button class="btn" onclick="deleteCell(${id})" style="margin-left:0;color:#cc0000">🗑</button>
                 </div>
                 <textarea id="code-${id}"></textarea>
@@ -264,7 +387,7 @@ print("Hello", name)
         const textarea = document.getElementById(`code-${id}`);
         textarea.value = content;
         const editor = CodeMirror.fromTextArea(textarea, {
-            mode: safeLanguage === "python" ? "python" : "text/plain",
+            mode: safeLanguage === "python" ? "python" : (safeLanguage === "html" ? "text/html" : "css"),
             theme: document.body.classList.contains('night-mode') ? "material-darker" : "neo",
             lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
         });
@@ -277,7 +400,7 @@ print("Hello", name)
         const cell = document.getElementById(`cell-${id}`);
         if (!cell || !editors[id]) return;
         cell.dataset.language = language;
-        editors[id].setOption("mode", language === "python" ? "python" : "text/plain");
+        editors[id].setOption("mode", language === "python" ? "python" : (language === "html" ? "text/html" : "css"));
         const out = document.getElementById(`output-${id}`);
         if (out && out.querySelector("iframe")) out.innerHTML = "";
     }
@@ -304,7 +427,7 @@ print("Hello", name)
         frame.setAttribute("referrerpolicy", "no-referrer");
         // Keep preview isolated from the notebook page; CSS is scoped to this iframe.
         const doc = String(htmlSource || "");
-        const styleTag = `<style>html,body{box-sizing:border-box}body{margin:8px;overflow-wrap:anywhere}*{max-width:100%;} ${String(cssSource || "")} </style>`;
+        const styleTag = `<style>html{box-sizing:border-box;min-height:100%;overflow-x:hidden;overflow-y:auto}body{box-sizing:border-box;min-height:100%;margin:8px;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere;-webkit-overflow-scrolling:touch}*{max-width:100%;box-sizing:border-box;} ${String(cssSource || "")} </style>`;
         let rendered;
         if (/<html[\s>]/i.test(doc)) {
             rendered = /<head[\s>]/i.test(doc)
@@ -441,90 +564,127 @@ print("Hello", name)
     
     function newNotebook() { if(confirm("Clear?")) { document.getElementById('notebook').innerHTML = ""; cellCount = 0; editors = {}; addNewCell(); } }
 
-    function saveToFile() {
-        // Save using the standard Jupyter Notebook (.ipynb / nbformat 4) structure.
-        const cells = Object.entries(editors).map(([idText, ed]) => {
-            const id = Number(idText);
-            return {
-                cell_type: "code",
-                execution_count: null,
-                metadata: { custom_language: getCellLanguage(id) },
-                outputs: [],
-                source: ed.getValue().split("\n").map((line, index, all) =>
-                    index < all.length - 1 ? line + "\n" : line
-                )
-            };
-        });
-        const notebook = {
-            cells: cells,
-            metadata: {
-                kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
-                language_info: { name: "python", file_extension: ".py", mimetype: "text/x-python" }
-            },
-            nbformat: 4,
-            nbformat_minor: 5
-        };
-        const json = JSON.stringify(notebook, null, 2);
+    function openCurrentFile() {
+        const input = document.getElementById('file-input');
+        const workspace = currentWorkspace;
+        input.dataset.openWorkspace = workspace;
+        input.value = '';
+        input.click();
+    }
+
+    function downloadTextFile(filename, mime, text) {
         if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
-            const base64 = btoa(unescape(encodeURIComponent(json)));
-            window.AndroidDownloads.saveBase64File("notebook.ipynb", "application/x-ipynb+json", base64);
+            const base64 = btoa(unescape(encodeURIComponent(text)));
+            window.AndroidDownloads.saveBase64File(filename, mime, base64);
         } else {
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([json], {type: "application/x-ipynb+json"}));
-            a.download = "notebook.ipynb"; a.click();
+            a.href = URL.createObjectURL(new Blob([text], {type:mime}));
+            a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         }
     }
+
+    function saveCurrentFile(saveAs) {
+        let defaultName = currentFileName;
+        let extension = '.ipynb', mime = 'application/x-ipynb+json', content = '';
+        if (currentWorkspace === 'python') {
+            extension = '.py'; mime = 'text/x-python';
+            content = scriptEditor ? scriptEditor.getValue() : document.getElementById('script-code').value;
+            defaultName = defaultName || 'script.py';
+        } else if (currentWorkspace === 'web') {
+            if (codingLanguage === 'css') {
+                extension = '.css'; mime = 'text/css';
+                content = webEditor ? webEditor.getValue() : savedCssCode;
+                defaultName = defaultName || 'style.css';
+            } else {
+                extension = '.html'; mime = 'text/html';
+                content = webEditor ? webEditor.getValue() : savedHtmlCode;
+                defaultName = defaultName || 'index.html';
+            }
+        } else {
+            const cells = Object.entries(editors).map(([idText, ed]) => ({
+                cell_type: 'code', execution_count: null,
+                metadata: {custom_language: getCellLanguage(Number(idText))}, outputs: [],
+                source: ed.getValue().split('\n').map((line, i, all) => i < all.length - 1 ? line + '\n' : line)
+            }));
+            content = JSON.stringify({cells, metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python',file_extension:'.py',mimetype:'text/x-python'}},nbformat:4,nbformat_minor:5}, null, 2);
+            defaultName = defaultName || 'notebook.ipynb';
+        }
+        let filename = defaultName;
+        if (saveAs || !currentFileName) {
+            const suggested = defaultName;
+            filename = prompt('Save file name (extension will be kept appropriate):', suggested);
+            if (!filename) return;
+            filename = filename.trim();
+            if (!filename) return;
+            // Ensure mode-specific extension; replace a conflicting extension rather than append twice.
+            filename = filename.replace(/\.(ipynb|json|py|html?|css)$/i, '');
+            filename += extension;
+        } else if (!filename.toLowerCase().endsWith(extension)) {
+            filename = filename.replace(/\.[^.]+$/, '') + extension;
+        }
+        currentFileName = filename;
+        downloadTextFile(filename, mime, content);
+    }
+
+    // Keep compatibility with the old File menu callback.
+    function saveToFile() { saveCurrentFile(false); }
 
     window.onNativeDownloadResult = function(success, message) {
         if (success) alert(message || "File saved successfully");
         else if (message && message !== "Save cancelled") alert(message);
     };
     
-    function loadFromFile(event) {
+    function loadCurrentFile(event) {
         const input = event.target;
         const file = input.files && input.files[0];
         if (!file) return;
+        const name = file.name || '';
+        const ext = name.toLowerCase().split('.').pop();
         const reader = new FileReader();
         reader.onload = (e) => {
+            const text = String(e.target.result || '');
             try {
-                const parsed = JSON.parse(e.target.result);
-                let cellsToLoad;
-                // Backward compatibility: the older app saved a JSON array of code strings.
-                if (Array.isArray(parsed) && parsed.every(c => typeof c === "string")) {
-                    cellsToLoad = parsed.map(source => ({source, language: "python"}));
-                } else if (parsed && typeof parsed === "object" && Array.isArray(parsed.cells)) {
-                    // Load code cells; custom_language preserves HTML/CSS cells created in this app.
-                    cellsToLoad = parsed.cells
-                        .filter(cell => cell && cell.cell_type === "code")
-                        .map(cell => {
-                            const source = cell.source;
-                            return {
-                                source: Array.isArray(source) ? source.join("") : (typeof source === "string" ? source : ""),
-                                language: cell.metadata && ["python", "html", "css"].includes(cell.metadata.custom_language) ? cell.metadata.custom_language : "python"
-                            };
-                        });
+                if (['py'].includes(ext)) {
+                    selectWorkspace('python');
+                    if (!scriptEditor) selectWorkspace('python');
+                    if (scriptEditor) scriptEditor.setValue(text);
+                    else document.getElementById('script-code').value = text;
+                } else if (['html','htm'].includes(ext)) {
+                    selectWorkspace('web'); selectCodingLanguage('html');
+                    savedHtmlCode = text;
+                    if (webEditor) webEditor.setValue(text);
+                } else if (ext === 'css') {
+                    selectWorkspace('web'); selectCodingLanguage('css');
+                    savedCssCode = text;
+                    if (webEditor) webEditor.setValue(text);
                 } else {
-                    throw new Error("Unsupported format. Please select a valid .ipynb notebook or legacy .json file.");
+                    const parsed = JSON.parse(text);
+                    let cellsToLoad;
+                    if (Array.isArray(parsed) && parsed.every(c => typeof c === 'string')) {
+                        cellsToLoad = parsed.map(source => ({source, language:'python'}));
+                    } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.cells)) {
+                        cellsToLoad = parsed.cells.filter(c => c && c.cell_type === 'code').map(cell => ({
+                            source: Array.isArray(cell.source) ? cell.source.join('') : (typeof cell.source === 'string' ? cell.source : ''),
+                            language: cell.metadata && ['python','html','css'].includes(cell.metadata.custom_language) ? cell.metadata.custom_language : 'python'
+                        }));
+                    } else throw new Error('Unsupported file. Open .ipynb, .json, .py, .html or .css.');
+                    document.getElementById('notebook').innerHTML = '';
+                    cellCount = 0; editors = {};
+                    cellsToLoad.forEach(cell => addNewCell(cell.source, cell.language));
+                    if (!cellsToLoad.length) addNewCell();
+                    selectWorkspace('notebook');
                 }
-                document.getElementById('notebook').innerHTML = "";
-                cellCount = 0;
-                editors = {};
-                cellsToLoad.forEach(cell => addNewCell(cell.source, cell.language));
-                if (cellsToLoad.length === 0) addNewCell();
+                currentFileName = name;
             } catch (err) {
-                alert("Could not open notebook: " + (err.message || "Invalid file"));
-            } finally {
-                // Allow selecting the same file again.
-                input.value = "";
-            }
+                alert('Could not open file: ' + (err.message || 'Invalid file'));
+            } finally { input.value = ''; }
         };
-        reader.onerror = () => {
-            alert("Could not read the selected file.");
-            input.value = "";
-        };
+        reader.onerror = () => { alert('Could not read selected file.'); input.value = ''; };
         reader.readAsText(file);
     }
+    function loadFromFile(event) { loadCurrentFile(event); }
 
     function moveCellUp(id) {
         const cell = document.getElementById(`cell-${id}`);
@@ -547,9 +707,10 @@ print("Hello", name)
         if (codingLanguage === "html" && webEditor) savedHtmlCode = webEditor.getValue();
         if (codingLanguage === "css" && webEditor) savedCssCode = webEditor.getValue();
         codingLanguage = language;
-        document.getElementById("lang-python").classList.toggle("active", language === "python");
-        document.getElementById("lang-html").classList.toggle("active", language === "html");
-        document.getElementById("lang-css").classList.toggle("active", language === "css");
+        const htmlTab = document.getElementById("lang-html");
+        const cssTab = document.getElementById("lang-css");
+        if (htmlTab) htmlTab.classList.toggle("active", language === "html");
+        if (cssTab) cssTab.classList.toggle("active", language === "css");
         document.getElementById("script-editor").style.display = language === "python" ? "block" : "none";
         document.getElementById("web-editor").style.display = language === "python" ? "none" : "block";
         document.getElementById("top-run-btn").title = language === "python" ? "Run Python code" : (language === "html" ? "Preview HTML with CSS" : "Preview HTML with CSS");
@@ -562,7 +723,7 @@ print("Hello", name)
         if (webEditor) {
             webEditor.setOption("mode", language === "html" ? "text/html" : "css");
             webEditor.setValue(language === "html" ? savedHtmlCode : savedCssCode);
-            webEditor.setSize("100%", "calc(100dvh - 205px)");
+            webEditor.setSize("100%", "auto");
             setTimeout(() => webEditor.refresh(), 50);
         }
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 50);
@@ -577,7 +738,7 @@ print("Hello", name)
         document.getElementById("console-input-row").style.display = "none";
         const html = codingLanguage === "html" ? savedHtmlCode : savedHtmlCode;
         const css = savedCssCode;
-        const style = `<style>html,body{box-sizing:border-box}body{margin:8px;overflow-wrap:anywhere}*{max-width:100%;} ${css} </style>`;
+        const style = `<style>html{box-sizing:border-box;min-height:100%;overflow-x:hidden;overflow-y:auto}body{box-sizing:border-box;min-height:100%;margin:8px;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere;-webkit-overflow-scrolling:touch}*{max-width:100%;box-sizing:border-box;} ${css} </style>`;
         let rendered;
         if (/<html[\s>]/i.test(html)) {
             rendered = /<head[\s>]/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1>${style}`) : html.replace(/<html([^>]*)>/i, `<html$1><head>${style}</head>`);
@@ -588,27 +749,56 @@ print("Hello", name)
         window.scrollTo(0, 0);
     }
 
-    function toggleMode() {
-        const entering = currentMode === "notebook";
-        currentMode = entering ? "coding" : "notebook";
-        document.getElementById("notebook").style.display = entering ? "none" : "flex";
-        document.getElementById("fab-btn").style.display = entering ? "none" : "block";
-        document.getElementById("coding-page").style.display = entering ? "block" : "none";
-        document.getElementById("coding-output-page").style.display = "none";
-        document.getElementById("mode-switch").textContent = entering ? "📒 Notebook" : "⌨️ Coding";
-        document.getElementById("mode-switch").title = entering ? "Return to Notebook" : "Open Coding page";
-        document.getElementById("top-run-btn").style.display = entering ? "inline-flex" : "none";
-        if (entering && !scriptEditor) {
-            scriptEditor = CodeMirror.fromTextArea(document.getElementById("script-code"), {
-                mode: "python", theme: document.body.classList.contains("night-mode") ? "material-darker" : "neo",
-                lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
+    function toggleModeMenu(event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('mode-menu');
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+
+    document.addEventListener('click', function(event) {
+        const menu = document.getElementById('mode-menu');
+        if (menu && !event.target.closest('.mode-dropdown')) menu.style.display = 'none';
+    });
+
+    function selectWorkspace(workspace) {
+        if (!['notebook','python','web'].includes(workspace)) workspace = 'notebook';
+        currentWorkspace = workspace;
+        currentMode = workspace === 'notebook' ? 'notebook' : 'coding';
+        document.getElementById('mode-menu').style.display = 'none';
+        document.getElementById('notebook').style.display = workspace === 'notebook' ? 'flex' : 'none';
+        document.getElementById('fab-btn').style.display = workspace === 'notebook' ? 'block' : 'none';
+        document.getElementById('coding-page').style.display = workspace === 'notebook' ? 'none' : 'block';
+        document.getElementById('coding-output-page').style.display = 'none';
+        document.body.classList.remove('terminal-open');
+        document.getElementById('mode-switch').textContent = workspace === 'notebook' ? '📒 Notebook ▾' : (workspace === 'python' ? '🐍 Python ▾' : '🌐 HTML & CSS ▾');
+        document.getElementById('top-run-btn').style.display = workspace === 'notebook' ? 'none' : 'inline-flex';
+        if (!scriptEditor) {
+            scriptEditor = CodeMirror.fromTextArea(document.getElementById('script-code'), {
+                mode:'python', theme:document.body.classList.contains('night-mode') ? 'material-darker' : 'neo',
+                lineNumbers:true, indentUnit:4, matchBrackets:true, viewportMargin:Infinity
             });
-            scriptEditor.setSize("100%", "48vh");
-            scriptEditor.on("focus", () => { lastFocusedEditor = scriptEditor; syncToolbar(); });
+            scriptEditor.setSize('100%', 'auto');
+            scriptEditor.on('focus', () => { lastFocusedEditor = scriptEditor; syncToolbar(); });
+        }
+        if (workspace === 'web') {
+            if (!webEditor) {
+                webEditor = CodeMirror.fromTextArea(document.getElementById('web-code'), {
+                    mode:'text/html', theme:document.body.classList.contains('night-mode') ? 'material-darker' : 'neo',
+                    lineNumbers:true, indentUnit:2, matchBrackets:true, viewportMargin:Infinity
+                });
+            }
+            selectCodingLanguage(codingLanguage === 'python' ? 'html' : codingLanguage);
+        } else if (workspace === 'python') {
+            document.getElementById('script-editor').style.display = 'block';
+            document.getElementById('web-editor').style.display = 'none';
         }
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
-        if (entering) selectCodingLanguage(codingLanguage);
-        window.scrollTo(0, 0);
+        if (webEditor) setTimeout(() => webEditor.refresh(), 80);
+        window.scrollTo(0,0);
+    }
+
+    function toggleMode() {
+        selectWorkspace(currentWorkspace === 'notebook' ? 'python' : 'notebook');
     }
 
     function showCodingOutputPage() {
@@ -633,8 +823,9 @@ print("Hello", name)
     }
 
     async function runScript() {
-        if (!scriptEditor) toggleMode();
-        if (codingLanguage !== "python") {
+        if (currentWorkspace === 'notebook') selectWorkspace('python');
+        if (!scriptEditor) selectWorkspace('python');
+        if (currentWorkspace === 'web') {
             if (webEditor) {
                 if (codingLanguage === "html") savedHtmlCode = webEditor.getValue();
                 if (codingLanguage === "css") savedCssCode = webEditor.getValue();

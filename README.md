@@ -48,3 +48,18 @@ The Android project is configured for Chaquopy Python 3.10. In GitHub Actions, `
 
 ## HTML/CSS preview update (v1.0.4)
 Notebook cells now have a language selector: Python, HTML, or CSS. Run on an HTML cell opens a sandboxed in-cell WebView-style iframe preview; CSS cells apply their styles to the latest non-empty HTML cell. Python cells continue using the existing Flask `/run` endpoint. Notebook `.ipynb` saving stores `custom_language` metadata for this app, and opening preserves it.
+
+
+## v1.0.7 scrolling update
+- Enabled vertical page scrolling for the Notebook and Coding workspace.
+- Python and HTML/CSS CodeMirror editors expand with their content instead of being locked to a viewport-height box.
+- Python output remains vertically scrollable in its output console.
+- HTML/CSS preview iframe and its document allow vertical scrolling for long rendered pages.
+- Preserved the existing workspace/menu and file extension logic from v1.0.6.
+
+## Python execution network behavior
+
+- The Android app retains the `INTERNET` permission so explicit network calls can work.
+- During a Python run, outbound socket connections are blocked by default unless the code explicitly references a recognized network API such as `requests`, `socket`, `urllib`, `httpx`, or `aiohttp`.
+- Loopback connections (`localhost`, `127.0.0.1`, `::1`) remain available for the app's local server.
+- This is a convenience guard, not a security sandbox. Python code can bypass it, and libraries not recognized by the detector may need to be added to the network API list. Only run code you trust.

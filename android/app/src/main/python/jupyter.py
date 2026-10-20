@@ -19,7 +19,46 @@ import uuid
 import builtins
 import time
 import traceback
+import socket
+import re
+from contextlib import contextmanager
 plt.show = lambda *args, **kwargs: None
+
+# Network is opt-in per execution: ordinary local/data-science code cannot open
+# outbound sockets. Code that explicitly uses a network-capable API (requests,
+# socket, urllib, httpx, etc.) is allowed to connect. Loopback remains available
+# for local services. This is an execution guard, not a sandbox for hostile code.
+_NETWORK_API_RE = re.compile(
+    r"\b(requests|socket|urllib|httpx|aiohttp|http\.client|ftplib|smtplib|"
+    r"websocket|websockets|paramiko|yfinance|praw|openai|boto3|firebase_admin|"
+    r"urllib3|curl_cffi|feedparser|discord|telegram|wikipedia|yahooquery|"
+    r"googleapiclient|selenium|playwright)\b"
+)
+_network_guard_lock = threading.RLock()
+
+@contextmanager
+def _network_policy(code):
+    # Serialize code execution while the process-wide socket hook is installed.
+    with _network_guard_lock:
+        if _NETWORK_API_RE.search(code or ""):
+            yield True
+            return
+        original_connect = socket.socket.connect
+        def guarded_connect(sock, address):
+            host = address[0] if isinstance(address, tuple) and address else address
+            host_text = str(host).lower().strip("[]")
+            is_loopback = host_text in ("localhost", "127.0.0.1", "::1")
+            if not is_loopback:
+                raise PermissionError(
+                    "Internet access is blocked for this run. Use a network library "
+                    "such as requests/socket/urllib explicitly in your code to allow it."
+                )
+            return original_connect(sock, address)
+        socket.socket.connect = guarded_connect
+        try:
+            yield False
+        finally:
+            socket.socket.connect = original_connect
 
 app = Flask(__name__)
 
@@ -72,7 +111,7 @@ def _run_code_job(job, code):
     # Keep variables across runs, as in an interactive Python console.
     _code_globals["__builtins__"] = local_builtins
     try:
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+        with _network_policy(code), contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
             exec(compile(code, "<coding-page>", "exec"), _code_globals, _code_globals)
     except KeyboardInterrupt:
         out.write("\nExecution cancelled.\n")
@@ -151,7 +190,7 @@ def run_code():
         return jsonify({"output":"","html":"","final_val":""})
 
     try:
-        with contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
+        with _network_policy(code), contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
             tree = ast.parse(code)
             last_node = tree.body[-1] if tree.body else None
 

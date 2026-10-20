@@ -25,6 +25,7 @@
             --out-line: #4CAF50;
             --run-color: #4CAF50;
             --menu-text: #212529;
+            --terminal-bg: #ffffff; --terminal-text: #212529; --terminal-toolbar: #f7f7f7; --terminal-border: #cfcfcf; --terminal-muted: #5f6368; --terminal-accent: #1976d2;
         }
         .night-mode {
             --bg-body: #1e1e1e; --cell-bg: #1e1e1e; --text-main: #d4d4d4;
@@ -36,6 +37,7 @@
             --out-line: #8bc34a;
             --run-color: #4CAF50;
             --menu-text: #d4d4d4;
+            --terminal-bg: #1e1e1e; --terminal-text: #d4d4d4; --terminal-toolbar: #2d2d2d; --terminal-border: #3c3c3c; --terminal-muted: #b0b0b0; --terminal-accent: #8bc34a;
         }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-body); color: var(--text-main); transition: 0.2s; min-height: 100vh; overflow-x: hidden; }
         
@@ -48,16 +50,24 @@
 
         .mode-switch { margin-left: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--cell-bg); color: var(--menu-text); padding: 7px 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
         #coding-page { display:none; width:100%; min-height:calc(100vh - 48px); margin:0; padding:0 0 24px; box-sizing:border-box; }
-        .coding-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:50; }
-        .coding-toolbar button { border:1px solid var(--border-color); border-radius:6px; padding:8px 12px; background:var(--cell-bg); color:var(--text-main); font-weight:700; }
+        #top-run-btn { display:none; border:1px solid var(--border-color); border-radius:8px; padding:7px 11px; background:var(--cell-bg); color:var(--run-color); font-weight:800; font-size:17px; cursor:pointer; }
+        .icon-btn { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 !important; border:1px solid var(--terminal-border) !important; border-radius:9px !important; background:var(--terminal-toolbar) !important; color:var(--terminal-text) !important; font-size:18px !important; }
+        .icon-btn.clear { color:var(--terminal-accent) !important; }
+        .icon-btn.stop { color:#e05252 !important; }
         #script-editor { padding:0; }
         #script-editor .CodeMirror { min-height:calc(100vh - 145px); height:calc(100vh - 145px); border:0; font-size:15px; }
-        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--bg-body); color:var(--text-main); overflow:auto; box-sizing:border-box; }
-        .output-page-toolbar { display:flex; align-items:center; gap:12px; padding:12px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:2; }
-        .back-output-btn { width:42px; height:42px; border:1px solid var(--border-color); border-radius:50%; background:var(--cell-bg); color:var(--text-main); font-size:24px; font-weight:bold; }
-        #console-output { white-space:pre-wrap; overflow-wrap:anywhere; min-height:45vh; max-height:none; overflow:auto; margin:12px; padding:14px; background:#111827; color:#d1fae5; font:14px/1.55 monospace; border-radius:8px; }
-        #console-input-row { display:none; gap:8px; padding:12px; margin:12px; background:var(--toolbar-bg); border:1px solid var(--border-color); border-radius:8px; }
-        #console-input { flex:1; min-width:0; padding:12px; font-size:16px; }
+        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; }
+        .output-page-toolbar { display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--terminal-toolbar); border-bottom:1px solid var(--terminal-border); position:absolute; top:0; left:0; right:0; height:48px; box-sizing:border-box; z-index:2; }
+        .output-page-toolbar button { cursor:pointer; }
+        .back-output-btn { width:36px; height:36px; border-radius:9px !important; font-size:21px !important; }
+        #console-terminal { position:absolute; top:48px; left:0; right:0; bottom:0; padding:12px 10px calc(12px + env(safe-area-inset-bottom)); box-sizing:border-box; overflow:auto; background:var(--terminal-bg); color:var(--terminal-text); -webkit-overflow-scrolling:touch; }
+        #console-output { display:block; white-space:pre-wrap; overflow-wrap:anywhere; min-height:0; margin:0; padding:0; background:transparent; color:var(--terminal-text); font:16px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; border:0; border-radius:0; overflow:visible; }
+        #console-input-row { display:none; align-items:baseline; gap:0; margin:0; padding:0; border:0; background:transparent; color:var(--terminal-text); font:16px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+        #console-prompt { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--terminal-text); }
+        #console-input { flex:1; width:1px; min-width:0; margin:0; padding:0; border:0; outline:0; border-radius:0; background:transparent; color:var(--terminal-text); caret-color:var(--terminal-accent); font:inherit; box-shadow:none; }
+        #console-input::placeholder { color:transparent; }
+        #console-input-row:focus-within { outline:none; }
+        body.terminal-open { overflow:hidden; }
         .container { width: 95%; max-width: 1100px; margin: 20px auto; padding-bottom: 300px; display: flex; flex-direction: column; }
         .cell { margin-bottom: 15px; border: 1px solid var(--border-color); background: var(--cell-bg); overflow: hidden; position: relative; }
         .toolbar { display: flex; gap: 10px; padding: 5px 10px; background: var(--toolbar-bg); border-bottom: 1px solid var(--border-color); align-items: center; }
@@ -91,6 +101,10 @@
 
         .output-container { padding: 15px; background: var(--out-bg); display: none; border-top: 2px solid var(--out-line); overflow-x: auto; margin-top: 2px; }
         .output-area { color: var(--out-text); font-family: 'Consolas', monospace; font-size: 13px; text-align: left; width: fit-content; min-width: 100%; }
+        .cell-language { margin-left:auto; max-width:110px; border:1px solid var(--border-color); border-radius:6px; padding:5px 6px; background:var(--cell-bg); color:var(--text-main); font-size:12px; }
+        .web-preview-frame { display:block; width:100%; min-height:260px; height:360px; border:1px solid var(--border-color); border-radius:6px; background:#fff; }
+        .web-preview-caption { font:12px/1.4 sans-serif; color:var(--terminal-muted); margin:0 0 6px; }
+
 
         .fab-add { position: fixed; width: 50px; height: 50px; background: #4caf50; color: white; border-radius: 50%; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 5000; right: 20px; bottom: 30px; }
 
@@ -116,6 +130,7 @@
         </div>
     </div>
     <div class="btn" style="margin-left:10px" onclick="toggleTheme()">🌙 Theme</div>
+    <button id="top-run-btn" onclick="runScript()" title="Run Python code" aria-label="Run Python code">▶</button>
     <button class="mode-switch" id="mode-switch" onclick="toggleMode()" title="Switch between Notebook and Coding page">⌨️ Coding</button>
     <input type="file" id="file-input" accept=".ipynb,.json,application/json,application/x-ipynb+json" style="display:none" onchange="loadFromFile(event)">
 </div>
@@ -123,11 +138,6 @@
 <div class="container" id="notebook"></div>
 <button class="fab-add" id="fab-btn" onclick="addNewCell()" title="Add Cell">+</button>
 <div id="coding-page">
-  <div class="coding-toolbar">
-    <strong style="margin-right:auto">⌨️ Python Coding</strong>
-    <button onclick="runScript()">▶ Run</button>
-    <button onclick="toggleMode()" title="Return to Notebook">📒 Notebook</button>
-  </div>
   <div id="script-editor"><textarea id="script-code">name = input("Enter your name: ")
 print("Hello", name)
 </textarea></div>
@@ -135,14 +145,15 @@ print("Hello", name)
 
 <div id="coding-output-page" aria-label="Python output page">
   <div class="output-page-toolbar">
-    <button class="back-output-btn" onclick="backToCodingEditor()" title="Back to code" aria-label="Back to code">←</button>
-    <strong style="font-size:18px">▶ Python Output</strong>
-    <button style="margin-left:auto" onclick="clearConsole()">🧹 Clear</button>
-    <button onclick="cancelScript()">■ Stop</button>
+    <button class="back-output-btn icon-btn" onclick="backToCodingEditor()" title="Back to code" aria-label="Back to code">←</button>
+    <span style="margin-left:auto"></span>
+    <button class="icon-btn clear" onclick="clearConsole()" title="Clear output" aria-label="Clear output">🧹</button>
+    <button class="icon-btn stop" onclick="cancelScript()" title="Stop Python" aria-label="Stop Python">■</button>
   </div>
-  <div style="font-weight:bold;margin:14px 12px 6px">Console Output</div>
-  <pre id="console-output">Output will appear here.</pre>
-  <div id="console-input-row"><input id="console-input" type="text" placeholder="Type input and press Enter"><button onclick="submitConsoleInput()">Send</button></div>
+  <div id="console-terminal" role="log" aria-live="polite">
+    <pre id="console-output"></pre>
+    <div id="console-input-row"><span id="console-prompt"></span><input id="console-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Python input"></div>
+  </div>
 </div>
 
 <div id="fixed-toolbar">
@@ -211,45 +222,126 @@ print("Hello", name)
         window.visualViewport.addEventListener('scroll', syncToolbar);
     }
 
-    function addNewCell(content = "") {
+    function addNewCell(content = "", language = "python") {
         cellCount++;
         const id = cellCount;
+        const safeLanguage = ["python", "html", "css"].includes(language) ? language : "python";
         const html = `
-            <div class="cell" id="cell-${id}">
+            <div class="cell" id="cell-${id}" data-language="${safeLanguage}">
                 <div class="toolbar">
                     <span class="cell-label">In [${id}]:</span>
                     <button class="btn-run" onclick="runCell(${id})">▶ Run</button>
                     <button class="btn-nav" onclick="moveCellUp(${id})">⬆️</button>
                     <button class="btn-nav" onclick="moveCellDown(${id})">⬇️</button>
                     <button class="btn" onclick="toggleOutput(${id})">👁️</button>
-                    <button class="btn" onclick="deleteCell(${id})" style="margin-left:auto;color:#cc0000">🗑</button>
+                    <select class="cell-language" aria-label="Cell language" onchange="changeCellLanguage(${id}, this.value)">
+                        <option value="python" ${safeLanguage === "python" ? "selected" : ""}>Python</option>
+                        <option value="html" ${safeLanguage === "html" ? "selected" : ""}>HTML</option>
+                        <option value="css" ${safeLanguage === "css" ? "selected" : ""}>CSS</option>
+                    </select>
+                    <button class="btn" onclick="deleteCell(${id})" style="margin-left:0;color:#cc0000">🗑</button>
                 </div>
-                <textarea id="code-${id}">${content}</textarea>
+                <textarea id="code-${id}"></textarea>
                 <div id="out-cont-${id}" class="output-container">
                     <button class="download-btn" onclick="downloadOutput(${id})" title="Download">⬇️</button>
                     <div id="output-${id}" class="output-area"></div>
                 </div>
             </div>`;
         document.getElementById('notebook').insertAdjacentHTML('beforeend', html);
-        
-        const editor = CodeMirror.fromTextArea(document.getElementById(`code-${id}`), {
-            mode: "python", 
-            theme: document.body.classList.contains('night-mode') ? "material-darker" : "neo", 
+        const textarea = document.getElementById(`code-${id}`);
+        textarea.value = content;
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: safeLanguage === "python" ? "python" : "text/plain",
+            theme: document.body.classList.contains('night-mode') ? "material-darker" : "neo",
             lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
         });
-        
         editor.on("focus", () => { lastFocusedEditor = editor; syncToolbar(); });
         editors[id] = editor;
     }
 
+    function changeCellLanguage(id, language) {
+        if (!["python", "html", "css"].includes(language)) language = "python";
+        const cell = document.getElementById(`cell-${id}`);
+        if (!cell || !editors[id]) return;
+        cell.dataset.language = language;
+        editors[id].setOption("mode", language === "python" ? "python" : "text/plain");
+        const out = document.getElementById(`output-${id}`);
+        if (out && out.querySelector("iframe")) out.innerHTML = "";
+    }
+
+    function getCellLanguage(id) {
+        const cell = document.getElementById(`cell-${id}`);
+        return cell && ["python", "html", "css"].includes(cell.dataset.language) ? cell.dataset.language : "python";
+    }
+
+    function escapePreviewText(value) {
+        return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function renderWebPreview(targetId, htmlSource, cssSource, message) {
+        const outputDiv = document.getElementById(`output-${targetId}`);
+        const container = document.getElementById(`out-cont-${targetId}`);
+        if (!outputDiv || !container) return;
+        container.style.display = "block";
+        outputDiv.innerHTML = `<div class="web-preview-caption">${escapePreviewText(message || "HTML/CSS Preview")}</div>`;
+        const frame = document.createElement("iframe");
+        frame.className = "web-preview-frame";
+        frame.title = "HTML and CSS preview";
+        frame.setAttribute("sandbox", "allow-forms allow-modals allow-popups");
+        frame.setAttribute("referrerpolicy", "no-referrer");
+        // Keep preview isolated from the notebook page; CSS is scoped to this iframe.
+        const doc = String(htmlSource || "");
+        const styleTag = `<style>html,body{box-sizing:border-box}body{margin:8px;overflow-wrap:anywhere}*{max-width:100%;} ${String(cssSource || "")} </style>`;
+        let rendered;
+        if (/<html[\s>]/i.test(doc)) {
+            rendered = /<head[\s>]/i.test(doc)
+                ? doc.replace(/<head([^>]*)>/i, `<head$1>${styleTag}`)
+                : doc.replace(/<html([^>]*)>/i, `<html$1><head>${styleTag}</head>`);
+        } else {
+            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag}</head><body>${doc}</body></html>`;
+        }
+        frame.srcdoc = rendered;
+        outputDiv.appendChild(frame);
+    }
+
+    function combinedCss() {
+        return Object.keys(editors).map(Number).sort((a,b) => a-b)
+            .filter(id => getCellLanguage(id) === "css")
+            .map(id => editors[id].getValue()).join("\n\n");
+    }
+
+    function latestHtmlCell(excludeId = null) {
+        const ids = Object.keys(editors).map(Number).sort((a,b) => a-b);
+        for (let i = ids.length - 1; i >= 0; i--) {
+            const id = ids[i];
+            if (id !== excludeId && getCellLanguage(id) === "html" && editors[id].getValue().trim()) return id;
+        }
+        return null;
+    }
 
     async function runCell(id) {
         const code = editors[id].getValue();
+        const language = getCellLanguage(id);
         const outputDiv = document.getElementById(`output-${id}`);
         const container = document.getElementById(`out-cont-${id}`);
         container.style.display = "block";
-        outputDiv.innerHTML = "Executing...";
-        
+        outputDiv.innerHTML = "";
+
+        if (language === "html") {
+            renderWebPreview(id, code, combinedCss(), "HTML Preview · CSS cells are applied");
+            return;
+        }
+        if (language === "css") {
+            const htmlId = latestHtmlCell(id);
+            if (htmlId === null) {
+                outputDiv.innerHTML = "<pre style='white-space:pre-wrap'>CSS saved. Add an HTML cell and run it to see this stylesheet applied.</pre>";
+                return;
+            }
+            renderWebPreview(id, editors[htmlId].getValue(), combinedCss(), "HTML Preview · combined CSS stylesheets");
+            return;
+        }
+
+        outputDiv.textContent = "Executing...";
         try {
             const response = await fetch('/run', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -257,15 +349,15 @@ print("Hello", name)
             });
             const data = await response.json();
             let resultHtml = "";
-            if ((data.output || "").trim() !== "") resultHtml += `<pre style="margin:0; white-space: pre-wrap;">${data.output}</pre>`;
+            if ((data.output || "").trim() !== "") resultHtml += `<pre style="margin:0; white-space: pre-wrap;">${escapePreviewText(data.output)}</pre>`;
             if (data.html) resultHtml += `<div style="margin-top:10px;">${data.html}</div>`;
             if (data.final_val && data.final_val !== "None") {
                 resultHtml += `<div style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:8px; display:flex; gap:10px;">
-                               <span class="cell-label" style="font-size:14px;">Out [${id}]:</span> 
-                               <div style="flex-grow:1; white-space: pre-wrap;">${data.final_val}</div></div>`;
+                               <span class="cell-label" style="font-size:14px;">Out [${id}]:</span>
+                               <div style="flex-grow:1; white-space: pre-wrap;">${escapePreviewText(data.final_val)}</div></div>`;
             }
             outputDiv.innerHTML = resultHtml || "<span style='color:gray;'>Executed</span>";
-        } catch (err) { outputDiv.innerHTML = "<span style='color:red;'>Error: " + err + "</span>"; }
+        } catch (err) { outputDiv.textContent = "Error: " + err; }
     }
 
     // FIXED: Full Scroll Width Capture Logic
@@ -338,15 +430,18 @@ print("Hello", name)
 
     function saveToFile() {
         // Save using the standard Jupyter Notebook (.ipynb / nbformat 4) structure.
-        const cells = Object.values(editors).map(ed => ({
-            cell_type: "code",
-            execution_count: null,
-            metadata: {},
-            outputs: [],
-            source: ed.getValue().split("\n").map((line, index, all) =>
-                index < all.length - 1 ? line + "\n" : line
-            )
-        }));
+        const cells = Object.entries(editors).map(([idText, ed]) => {
+            const id = Number(idText);
+            return {
+                cell_type: "code",
+                execution_count: null,
+                metadata: { custom_language: getCellLanguage(id) },
+                outputs: [],
+                source: ed.getValue().split("\n").map((line, index, all) =>
+                    index < all.length - 1 ? line + "\n" : line
+                )
+            };
+        });
         const notebook = {
             cells: cells,
             metadata: {
@@ -381,19 +476,20 @@ print("Hello", name)
         reader.onload = (e) => {
             try {
                 const parsed = JSON.parse(e.target.result);
-                let codes;
+                let cellsToLoad;
                 // Backward compatibility: the older app saved a JSON array of code strings.
                 if (Array.isArray(parsed) && parsed.every(c => typeof c === "string")) {
-                    codes = parsed;
+                    cellsToLoad = parsed.map(source => ({source, language: "python"}));
                 } else if (parsed && typeof parsed === "object" && Array.isArray(parsed.cells)) {
-                    // Standard Jupyter .ipynb (nbformat 4): load code cells and ignore markdown cells.
-                    codes = parsed.cells
+                    // Load code cells; custom_language preserves HTML/CSS cells created in this app.
+                    cellsToLoad = parsed.cells
                         .filter(cell => cell && cell.cell_type === "code")
                         .map(cell => {
                             const source = cell.source;
-                            if (Array.isArray(source)) return source.join("");
-                            if (typeof source === "string") return source;
-                            return "";
+                            return {
+                                source: Array.isArray(source) ? source.join("") : (typeof source === "string" ? source : ""),
+                                language: cell.metadata && ["python", "html", "css"].includes(cell.metadata.custom_language) ? cell.metadata.custom_language : "python"
+                            };
                         });
                 } else {
                     throw new Error("Unsupported format. Please select a valid .ipynb notebook or legacy .json file.");
@@ -401,8 +497,8 @@ print("Hello", name)
                 document.getElementById('notebook').innerHTML = "";
                 cellCount = 0;
                 editors = {};
-                codes.forEach(c => addNewCell(c));
-                if (codes.length === 0) addNewCell();
+                cellsToLoad.forEach(cell => addNewCell(cell.source, cell.language));
+                if (cellsToLoad.length === 0) addNewCell();
             } catch (err) {
                 alert("Could not open notebook: " + (err.message || "Invalid file"));
             } finally {
@@ -437,6 +533,7 @@ print("Hello", name)
         document.getElementById("coding-output-page").style.display = "none";
         document.getElementById("mode-switch").textContent = entering ? "📒 Notebook" : "⌨️ Coding";
         document.getElementById("mode-switch").title = entering ? "Return to Notebook" : "Open Coding page";
+        document.getElementById("top-run-btn").style.display = entering ? "inline-flex" : "none";
         if (entering && !scriptEditor) {
             scriptEditor = CodeMirror.fromTextArea(document.getElementById("script-code"), {
                 mode: "python", theme: document.body.classList.contains("night-mode") ? "material-darker" : "neo",
@@ -452,12 +549,15 @@ print("Hello", name)
     function showCodingOutputPage() {
         document.getElementById("coding-page").style.display = "none";
         document.getElementById("coding-output-page").style.display = "block";
-        document.getElementById("console-output").textContent = "Starting Python…\n";
+        document.body.classList.add("terminal-open");
+        document.getElementById("console-output").textContent = "";
+        document.getElementById("console-input-row").style.display = "none";
         window.scrollTo(0, 0);
     }
 
     function backToCodingEditor() {
         document.getElementById("coding-output-page").style.display = "none";
+        document.body.classList.remove("terminal-open");
         document.getElementById("coding-page").style.display = "block";
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
         window.scrollTo(0, 0);
@@ -469,7 +569,7 @@ print("Hello", name)
         const output = document.getElementById("console-output");
         const inputRow = document.getElementById("console-input-row");
         inputRow.style.display = "none";
-        output.textContent = "Starting Python…\n";
+        output.textContent = "";
         lastConsoleOutput = "";
         try {
             const res = await fetch('/code/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:scriptEditor.getValue()})});
@@ -490,13 +590,17 @@ print("Hello", name)
             if (data.output !== lastConsoleOutput) {
                 output.textContent = data.output || "";
                 lastConsoleOutput = data.output || "";
-                output.scrollTop = output.scrollHeight;
+                const terminal = document.getElementById("console-terminal");
+                terminal.scrollTop = terminal.scrollHeight;
             }
             const inputRow = document.getElementById("console-input-row");
             if (data.input_prompt !== null && data.input_prompt !== undefined) {
                 inputRow.style.display = "flex";
-                document.getElementById("console-input").placeholder = data.input_prompt || "Enter input";
-                document.getElementById("console-input").focus();
+                document.getElementById("console-prompt").textContent = data.input_prompt || "";
+                const field = document.getElementById("console-input");
+                if (document.activeElement !== field) field.focus();
+                const terminal = document.getElementById("console-terminal");
+                terminal.scrollTop = terminal.scrollHeight;
             } else if (!data.running) inputRow.style.display = "none";
             if (data.done) { activeJobId = null; return; }
             statusPollTimer = setTimeout(pollScriptStatus, 250);
@@ -511,6 +615,7 @@ print("Hello", name)
         const field = document.getElementById("console-input");
         const value = field.value;
         field.value = "";
+        field.blur();
         document.getElementById("console-input-row").style.display = "none";
         try {
             const res = await fetch('/code/input/' + activeJobId, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({value})});
@@ -530,7 +635,7 @@ print("Hello", name)
         try { await fetch('/code/cancel/' + activeJobId, {method:'POST'}); } catch (_) {}
     }
     function clearConsole() {
-        document.getElementById("console-output").textContent = "Console cleared.";
+        document.getElementById("console-output").textContent = "";
         lastConsoleOutput = "";
     }
 

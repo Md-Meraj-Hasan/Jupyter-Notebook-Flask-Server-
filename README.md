@@ -44,3 +44,7 @@ The Android project is configured for Chaquopy Python 3.10. In GitHub Actions, `
 - File → Open is wired to the Android system file picker through `WebChromeClient.onShowFileChooser`.
 - Output PNG download and notebook JSON save use Android's native Create Document dialog through the `AndroidDownloads` JavaScript bridge.
 - After building, test both actions on the target phone.
+
+
+## Tkinter live diagnostic (v1.0.2)
+This version adds `TKINTER_LIVE_DIAGNOSTIC.py` so you can run a real `import tkinter` test in the installed APK and share the exact error. This is diagnostic only; it does not pretend Tkinter is already supported. See `TKINTER_LIVE_DIAGNOSTIC_README.md`.

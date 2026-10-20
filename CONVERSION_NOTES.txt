@@ -1,0 +1,9 @@
+Conversion notes
+- Original reference: python_rummy_popup_creator_sound.py
+- Android web entry: www/index.html
+- Responsive styling: www/style.css
+- Game implementation: www/app.js
+- Capacitor app id: com.cd786hassan.indianrummy
+- GitHub Actions workflow builds a debug APK and uploads it as an artifact.
+- Browser audio uses Web Audio when supported; the in-game sound toggle can disable it.
+- This is a manual port of core gameplay. Please test APK on device before sharing; UI/game behavior may not exactly match every Tkinter detail.

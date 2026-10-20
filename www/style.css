@@ -1,0 +1,291 @@
+:root{--bg:#e8edf2;--panel:#fff;--wine:#4b1742;--wine2:#7b174f;--green:#087b59;--ink:#201820;--muted:#635763;--gold:#e8c84c;--line:#d8cbd6;--red:#c31f42}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}body{overscroll-behavior:none}#app{min-height:100dvh;display:flex;flex-direction:column;max-width:780px;margin:auto;padding:env(safe-area-inset-top) 10px env(safe-area-inset-bottom)}.topbar{background:linear-gradient(135deg,#35102f,#6e235b);color:white;text-align:center;padding:13px 8px 10px;border-radius:0 0 16px 16px;box-shadow:0 3px 12px #35102f40}.brand{font-size:clamp(18px,4.6vw,27px);font-weight:900;letter-spacing:.3px}.creator{font-size:13px;font-weight:900;color:#fff1a8;margin-top:6px;text-shadow:0 1px 0 #8a4a00,0 2px 3px #160914,0 0 8px #ffd76a;letter-spacing:.25px}.screen{flex:1;padding:12px 0 20px}.panel{background:var(--panel);border:2px solid var(--line);border-radius:15px;padding:14px;margin:9px 0;box-shadow:0 3px 8px #2018200b}.hero{text-align:center;padding:22px 14px}.hero h1{color:var(--wine);font-size:clamp(26px,7vw,40px);margin:7px 0 4px}.hero .powered{font-size:22px;font-weight:900;margin:0 0 8px}.hero p{font-weight:700;color:var(--muted);line-height:1.45}.btn{display:block;width:100%;border:0;border-radius:12px;padding:15px 12px;margin:9px 0;font-size:19px;font-weight:900;color:#fff;background:var(--green);box-shadow:0 3px 0 #075b43;cursor:pointer}.btn:active{transform:translateY(1px);box-shadow:0 1px 0 #075b43}.btn.wine{background:var(--wine);box-shadow:0 3px 0 #30102a}.btn.soft{background:#f7e8f0;color:var(--wine);box-shadow:0 3px 0 #d4a8bf}.btn.blue{background:#06447d;box-shadow:0 3px 0 #033052}.btn.small{width:auto;display:inline-block;margin:3px;padding:10px 12px;font-size:14px}.btn:disabled{opacity:.45}.section-title{font-weight:900;color:var(--wine);font-size:19px;margin:3px 0 12px}.choice{display:flex;gap:8px}.choice button{flex:1;border:2px solid #c9d5de;border-radius:10px;padding:12px 3px;background:#f5f7fa;font-size:15px;font-weight:800;color:#17334c}.choice button.active{background:#b9eedb;border-color:#079b63;color:#063d31}.muted{color:var(--muted);font-size:13px;line-height:1.4}.gamebar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.pill{background:#f8e8f0;color:var(--wine);border-radius:100px;padding:7px 10px;font-size:13px;font-weight:900}.opponents{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.opponent{background:#fff;border:1px solid #c9d5de;border-radius:10px;padding:8px 4px;text-align:center;font-size:12px;font-weight:800;min-width:0}.opponent .count{display:block;color:var(--wine);font-size:20px;margin-top:3px}.tablezone{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pile{background:#f9f4f8;border:2px dashed #cdaec3;border-radius:13px;padding:10px;text-align:center;min-height:110px}.pile strong{display:block;color:var(--wine);margin-bottom:7px}.pile .btn{font-size:14px;padding:10px 4px;margin:5px 0}.card{position:relative;background:#fff;border:1.5px solid #c5c5c5;border-radius:7px;width:clamp(43px,11.4vw,64px);height:clamp(66px,17.4vw,94px);display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;box-shadow:0 2px 3px #0002;color:#171717;flex-shrink:0;user-select:none}.card.red{color:#c21f42}.card.back{background:repeating-linear-gradient(45deg,#f7e8f0,#f7e8f0 5px,#e7cadb 5px,#e7cadb 10px);color:var(--wine);font-size:22px}.card .rank{font-size:clamp(15px,4.4vw,22px);line-height:1}.card .suit{font-size:clamp(18px,4.8vw,24px);line-height:1.1}.card .corner{position:absolute;left:4px;top:3px;font-size:10px}.card.selected{transform:translateY(-8px);border:3px solid #16885f;box-shadow:0 0 0 2px #16885f35}.card.group-pure{background:#d6f6e5;border-color:#16885f}.card.group-impure{background:#dceaff;border-color:#2671c8}.card.group-set{background:#ffefc6;border-color:#d99b00}.hand-title{display:flex;justify-content:space-between;align-items:center;font-weight:900;color:var(--wine);margin-bottom:8px}.hand{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;min-height:100px;padding:7px 2px}.hand .card{cursor:pointer}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.actions .btn{font-size:15px;padding:13px 4px;margin:0}.hint{background:#fff6d8;border:1px solid #e8c84c;border-radius:9px;padding:9px;font-size:13px;font-weight:700;line-height:1.35}.result-row{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid #eee;font-weight:800;gap:8px}.result-row:last-child{border-bottom:0}.result-row .score{color:var(--wine)}.scroll{max-height:65vh;overflow:auto}.footer-note{text-align:center;color:#746b74;font-size:11px;padding:10px}.dialogback{position:fixed;inset:0;background:#140b15aa;display:flex;align-items:center;justify-content:center;padding:22px;z-index:10}.dialog{background:#fff;border-radius:17px;padding:22px;width:min(440px,100%);box-shadow:0 12px 50px #0005}.dialog h2{margin:0 0 8px;color:var(--wine)}.dialog p{line-height:1.45}.dialog .btn{font-size:16px}.tag{display:inline-block;font-size:10px;font-weight:900;border-radius:5px;padding:3px 5px;margin:2px}.tag.pure{background:#d6f6e5;color:#075b43}.tag.impure{background:#dceaff;color:#164b8a}.tag.set{background:#ffefc6;color:#7a5300}@media(min-width:600px){.screen{padding:18px 10px}.card{width:62px;height:91px}.hand{gap:8px}}
+/* Compact single-screen phone game layout */
+html,body{width:100%;height:100%;overflow:hidden}#app{height:100dvh;min-height:0;overflow:hidden;padding:env(safe-area-inset-top) 5px env(safe-area-inset-bottom)}.topbar{flex-shrink:0;padding:7px 5px 6px}.brand{font-size:clamp(15px,4.1vw,23px)}.creator{font-size:11px;margin-top:3px}.screen{min-height:0;overflow:hidden;padding:4px 0;display:flex;flex-direction:column;gap:4px}.panel{padding:7px;margin:2px 0;border-radius:12px;box-shadow:none}.footer-note,footer{display:none}.game-screen{flex:1;min-height:0;display:grid!important;grid-template-rows:auto auto minmax(0,1fr);gap:4px;overflow:hidden}.game-screen .panel{min-height:0}.status-panel{padding:6px}.gamebar{gap:4px;flex-wrap:nowrap}.pill{padding:5px 6px;font-size:clamp(9px,2.5vw,12px);white-space:nowrap}.opponents{margin-top:5px!important;gap:4px}.opponent{padding:4px 2px;font-size:10px;border-radius:5px}.opponent .count{font-size:15px;margin-top:1px}.table-panel{padding:5px}.tablezone{gap:5px}.pile{min-height:0;padding:5px;border-radius:8px}.pile strong{font-size:12px;margin-bottom:3px}.pile .card{width:38px;height:50px}.pile .muted{font-size:10px}.pile .btn{font-size:11px;padding:6px 2px;margin:3px 0;border-radius:6px}.hand-panel{display:flex;flex-direction:column;overflow:hidden;padding:6px}.hand-title{font-size:14px;margin-bottom:2px;flex-shrink:0}.hand-title .btn{padding:5px 9px;font-size:12px;margin:0}.hand{flex:1;min-height:0;align-content:space-evenly;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);justify-items:center;gap:3px;padding:3px 0;overflow:hidden}.hand .card{width:min(100%,clamp(37px,10.8vw,58px));height:100%;max-height:clamp(54px,10.8vh,83px);min-height:0;border-radius:5px}.card .corner{left:3px;top:2px;font-size:9px}.card .rank{font-size:clamp(14px,4vw,20px)}.card .suit{font-size:clamp(17px,4.6vw,23px)}.card.selected{transform:translateY(-3px)}.actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;flex-shrink:0}.actions .btn{font-size:clamp(10px,2.9vw,14px);line-height:1.05;padding:10px 2px;border-radius:7px;box-shadow:0 2px 0 #0002}.hint{display:none}.tag{display:none}.btn{margin:4px 0;padding:10px 5px;font-size:15px}.dialogback{z-index:20}@media(max-height:700px){.brand{font-size:14px}.creator{font-size:10px}.opponent{font-size:9px}.opponent .count{font-size:13px}.pile .card{height:40px}.hand .card{max-height:7.8vh}.actions .btn{padding:7px 1px;font-size:10px}}
+/* Reference-matched compact single-screen table layout */
+#app{max-width:720px;padding-left:4px;padding-right:4px}.topbar{border-radius:0 0 12px 12px;padding:6px 4px 5px}.brand{font-size:clamp(14px,3.9vw,22px)}.creator{font-size:10px}.game-screen{grid-template-rows:auto minmax(0,1fr) auto!important;gap:4px}.status-panel{padding:5px 4px}.gamebar{justify-content:center}.pill{font-size:clamp(9px,2.4vw,12px);padding:5px 6px}.playerrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin-top:4px}.playerbox{border:1px solid #234c68;background:#d8eaf6;color:#17364c;text-align:center;min-width:0;padding:4px 1px;font-size:clamp(9px,2.3vw,12px);display:flex;flex-direction:column;gap:2px}.playerbox span{font-weight:800}.playerbox small{font-weight:800}.playerbox.youbox{background:#d7efe6;border-color:#18705c}.turnmessage{font-size:clamp(10px,2.4vw,13px);font-weight:800;text-align:center;color:var(--wine);padding:3px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hand-panel{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:5px}.hand-title{font-size:clamp(12px,3vw,17px);margin-bottom:2px}.hand{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);align-content:stretch;justify-items:center;gap:3px;padding:3px 0}.hand .card{width:min(100%,clamp(42px,12.2vw,70px));height:100%;max-height:clamp(50px,10vh,82px);min-height:0;border-radius:3px;border-width:2px}.card .rank{font-size:clamp(16px,4.5vw,25px)}.card .suit{font-size:clamp(21px,5.4vw,31px)}.card .corner{font-size:9px}.table-panel{padding:4px;display:flex;flex-direction:column;gap:4px}.tabletray{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));height:clamp(100px,14vh,124px);min-height:94px;border:1px solid #c8c8c8;background:#fff}.traycell{border-right:1px solid #ddd;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-width:0;position:relative}.traycell:last-child{border-right:0}.traycell>b{font-size:clamp(9px,2.4vw,12px);color:#fff;text-align:center;width:100%;padding:4px 0;background:#234c68}.traycell.open>b{background:#a72f45}.traycell .card{width:clamp(27px,7vw,42px);height:clamp(38px,6.2vh,49px);min-height:0;border-radius:0;box-shadow:2px 2px 0 #b6a1ad}.traycell .card .rank{font-size:16px}.traycell .card .suit{font-size:18px}.wastebtn{border:0;background:transparent;color:#a72f45;font-size:31px;line-height:1;padding:3px}.traycell small{font-size:clamp(7px,1.8vw,9px);line-height:1.05;text-align:center;padding:1px 1px;overflow-wrap:anywhere}.traycell.last-discard .card{margin-top:2px}.traycell.last-discard .card.back{font-size:15px}.traycell.last-discard>b{font-size:clamp(8px,2vw,11px)}.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:4px}.actions .btn{font-size:clamp(10px,2.7vw,15px);line-height:1.05;padding:clamp(8px,1.8vh,14px) 2px;border-radius:0;box-shadow:none;border:1px solid #ddd;min-height:clamp(43px,8vh,68px);margin:0;color:#1e1e1e;background:#fff}.actions .btn.soft{background:#fff0a8;color:#6c2445}.actions .btn.wine{background:#8b315f;color:white}.actions .btn.blue{background:#fff;color:#1e1e1e}.extra-actions{display:none}.pile{display:none}
+@media(max-height:700px){.topbar{padding:3px}.creator{margin-top:1px}.status-panel{padding:3px}.turnmessage{display:none}.hand .card{max-height:7.6vh}.tabletray{height:7.5vh;min-height:45px}.actions .btn{min-height:6.5vh;padding:5px 1px}}
+
+/* Fix: larger, reliable touch target for discard/waste icon. */
+.wastebtn{position:relative;z-index:5;display:flex;align-items:center;justify-content:center;width:100%;min-height:38px;flex:1;cursor:pointer;touch-action:manipulation;pointer-events:auto;border-radius:6px;}
+.traycell.waste{z-index:2;}
+
+/* Reference-style playing cards: larger rank/suit, offset paper shadow, clear group colors */
+.hand{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));justify-items:center;align-items:start;gap:7px 5px;min-height:0;padding:8px 2px 10px}
+.hand .card{width:clamp(54px,13.8vw,96px);height:clamp(84px,19.5vw,132px);border:2px solid #c7c2c7;border-radius:1px;box-shadow:5px 5px 0 #c9aab9,0 2px 5px #0002;justify-self:center}
+.hand .card .corner{left:5px;top:4px;font-size:clamp(11px,2.7vw,17px);font-weight:900}
+.hand .card .rank{font-size:clamp(23px,6.2vw,42px);line-height:.95;margin-top:5px}
+.hand .card .suit{font-size:clamp(28px,7.2vw,48px);line-height:1.05}
+.hand .card.group-pure{background:#087b35;color:#fff;border-color:#075b2a;box-shadow:5px 5px 0 #c9aab9,0 0 0 2px #075b2a}
+.hand .card.group-impure{background:#cfe4ff;color:#101820;border-color:#1761a4;box-shadow:5px 5px 0 #c9aab9,0 0 0 1px #1761a4}
+.hand .card.group-set{background:#ffed9a;color:#201820;border-color:#c99a20;box-shadow:5px 5px 0 #c9aab9,0 0 0 1px #c99a20}
+.hand .card.selected{transform:translateY(-5px);border:3px solid #16885f;box-shadow:0 0 0 3px #16885f35,5px 5px 0 #c9aab9}
+@media(max-width:390px){.hand{gap:6px 3px}.hand .card{width:clamp(49px,13vw,58px);height:clamp(76px,19vw,86px)}.hand .card .rank{font-size:clamp(20px,5.8vw,24px)}.hand .card .suit{font-size:clamp(25px,6.7vw,29px)}}
+
+/* Final layout adjustment: compact hand rows and move discard tray up, matching reference screen. */
+.game-screen{grid-template-rows:auto auto auto!important;align-content:start;gap:4px!important}
+.hand-panel{flex:0 0 auto!important;height:auto!important;min-height:0!important;overflow:visible!important}
+.hand{flex:0 0 auto!important;height:auto!important;min-height:0!important;grid-auto-rows:auto!important;align-content:start!important;gap:6px 5px!important;padding:5px 0 7px!important;overflow:visible!important}
+.hand .card{height:clamp(64px,10.8vh,82px)!important;max-height:none!important;min-height:0!important;width:min(100%,clamp(48px,12.2vw,70px))!important}
+.table-panel{margin-top:1px!important;align-self:stretch}
+.gamebar .new-game-inline{width:auto;display:inline-flex;align-items:center;justify-content:center;margin:0;padding:8px 12px;font-size:clamp(11px,2.8vw,15px);white-space:nowrap;border-radius:22px;background:#06447d;color:#fff;border:2px solid #e8c84c;box-shadow:0 3px 0 #075b43;min-height:36px}
+@media(max-height:700px){.hand .card{height:clamp(54px,9.2vh,68px)!important}.hand{gap:4px 4px!important}.gamebar .new-game-inline{min-height:30px;padding:5px 9px}}
+
+/* History / discard tray: taller, clearer, and with the open card fully inside its frame. */
+.table-panel{overflow:visible!important}
+.tabletray{height:clamp(112px,16vh,150px)!important;min-height:112px!important;align-items:stretch!important;overflow:hidden!important}
+.traycell{position:relative;min-width:0;min-height:0;overflow:hidden!important}
+.traycell>b{position:relative;z-index:3;display:block;text-align:center}
+.traycell.open .card{position:relative;z-index:1;margin:2px auto 4px!important;width:clamp(40px,10vw,58px)!important;height:clamp(64px,9.5vh,82px)!important;max-height:none!important}
+.traycell.waste{display:flex!important;flex-direction:column;align-items:stretch;justify-content:flex-start}
+.traycell.waste .wastebtn{position:relative;z-index:10;flex:1 1 auto;min-height:48px!important;width:100%;border:0;background:transparent;cursor:pointer;touch-action:manipulation;pointer-events:auto;font-size:clamp(25px,5vw,34px)}
+.traycell.waste small{position:relative;z-index:3;display:block;text-align:center;padding:0 1px 4px;pointer-events:none}
+.actions{position:relative;z-index:1}
+@media(max-height:700px){.tabletray{height:clamp(90px,14vh,112px)!important;min-height:90px!important}.traycell.open .card{height:clamp(54px,8vh,66px)!important}}
+
+/* Compact tray: enough height for OPEN/WASTE labels and one full card. */
+.tabletray{height:clamp(88px,12vh,112px)!important;min-height:88px!important;overflow:hidden!important;}
+.traycell.open .card{width:clamp(38px,9vw,52px)!important;height:clamp(56px,8vh,68px)!important;margin:2px auto 3px!important;flex-shrink:0;}
+.traycell.waste .wastebtn{min-height:38px!important;flex:1 1 auto!important;}
+.traycell.waste small{font-size:clamp(9px,2.2vw,11px)!important;padding-bottom:3px!important;}
+.history-dialog{max-height:78vh;display:flex;flex-direction:column;}
+.history-list{overflow:auto;max-height:58vh;border:1px solid #eadde6;border-radius:9px;padding:6px;margin:8px 0 12px;}
+.history-entry{display:grid;grid-template-columns:28px 1fr;gap:8px;padding:8px 4px;border-bottom:1px solid #eee;font-size:14px;font-weight:700;}
+.history-entry:last-child{border-bottom:0;}
+.wastebtn{touch-action:manipulation;cursor:pointer;}
+
+/* Card face requested: rank at top-left, large suit centered, small suit at bottom-right. */
+.hand .card{position:relative;display:flex;align-items:center;justify-content:center;overflow:visible;}
+.hand .card .corner{position:absolute!important;left:5px!important;top:4px!important;right:auto!important;bottom:auto!important;font-size:clamp(12px,3.2vw,19px)!important;line-height:1!important;z-index:2;}
+.hand .card .rank{display:none!important;}
+.hand .card .suit{position:absolute;left:50%;top:50%;transform:translate(-50%,-48%);font-size:clamp(31px,8vw,54px)!important;line-height:1!important;margin:0!important;text-align:center;}
+.hand .card .corner-suit{position:absolute;right:5px;bottom:4px;font-size:clamp(12px,3vw,20px);line-height:1;z-index:2;}
+.traycell .card .rank{display:none!important;}
+.traycell .card .suit{position:absolute;left:50%;top:50%;transform:translate(-50%,-48%);font-size:clamp(18px,4.8vw,26px)!important;line-height:1!important;margin:0!important;}
+.traycell .card .corner-suit{position:absolute;right:3px;bottom:2px;font-size:10px;line-height:1;}
+
+/* Turn status on the left, New Game on the right. */
+.gamebar{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px!important;flex-wrap:nowrap!important}
+.gamebar .turn-pill{grid-column:1;grid-row:1;justify-self:start}
+.gamebar .wild-pill{grid-column:2;grid-row:1;justify-self:center}
+.gamebar .new-game-inline{grid-column:3;grid-row:1;justify-self:end}
+@media(max-width:380px){.gamebar{grid-template-columns:minmax(0,1fr) auto!important;row-gap:5px!important}.gamebar .turn-pill{grid-column:1;grid-row:1}.gamebar .new-game-inline{grid-column:2;grid-row:1}.gamebar .wild-pill{grid-column:1 / -1;grid-row:2;justify-self:start}}
+
+
+/* FIX: keep ROUND/TURN, WILD JOKER and NEW GAME on one compact line. */
+.gamebar{display:flex!important;flex-flow:row nowrap!important;align-items:center!important;justify-content:space-between!important;gap:4px!important;width:100%;min-width:0;overflow:visible!important;padding:3px 0!important;}
+.gamebar .turn-pill{order:1;flex:0 1 auto!important;min-width:0;white-space:nowrap!important;grid-column:auto!important;grid-row:auto!important;justify-self:auto!important;font-size:clamp(9px,2.65vw,12px)!important;padding:6px clamp(5px,1.6vw,10px)!important;}
+.gamebar .wild-pill{order:2;flex:0 1 auto!important;min-width:0;white-space:nowrap!important;grid-column:auto!important;grid-row:auto!important;justify-self:auto!important;font-size:clamp(9px,2.65vw,12px)!important;padding:6px clamp(5px,1.6vw,10px)!important;}
+.gamebar .new-game-inline{order:3;flex:0 0 auto!important;grid-column:auto!important;grid-row:auto!important;justify-self:auto!important;white-space:nowrap!important;font-size:clamp(10px,2.8vw,13px)!important;padding:7px clamp(7px,2vw,12px)!important;min-height:34px!important;margin-left:auto!important;}
+@media(max-width:380px){.gamebar{display:flex!important;flex-wrap:nowrap!important;gap:3px!important}.gamebar .turn-pill,.gamebar .wild-pill{font-size:9px!important;padding:5px 4px!important;letter-spacing:-.15px}.gamebar .new-game-inline{font-size:10px!important;padding:6px 7px!important;min-height:32px!important}}
+
+
+/* Header height update requested: use available lower whitespace and shift content down naturally. */
+.topbar{padding:15px 6px 13px!important;}
+.brand{font-size:clamp(16px,4.4vw,25px)!important;line-height:1.2!important;}
+.creator{font-size:clamp(12px,3.1vw,15px)!important;margin-top:7px!important;line-height:1.25!important;}
+
+/* Round review: inspect every player's final hand and detected melds. */
+.review-summary{text-align:center;margin-bottom:10px!important}
+.review-player{margin:10px 0!important;padding:12px!important;overflow:hidden}
+.review-player-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:var(--gold,#4B1742);font-size:clamp(15px,4vw,19px);margin-bottom:8px}
+.review-player-head span{font-size:clamp(11px,3vw,14px);color:#334155}
+.review-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:7px 0 10px}
+.review-stats span{background:#edf2f7;border:1px solid #cbd5e1;border-radius:7px;padding:6px;font-size:12px;color:#25364a}
+.review-group{border:1px solid #d6c8d2;border-radius:8px;padding:7px;margin:7px 0;background:#fff}
+.review-group-title{font-size:12px;font-weight:800;margin-bottom:6px;color:#26364a}
+.review-group-title.pure{color:#08764f}.review-group-title.impure{color:#0b5ca8}.review-group-title.set{color:#8b5a00}.review-group-title.loose{color:#8b2948}
+.review-cards{display:flex;flex-wrap:wrap;gap:7px;align-items:flex-start}
+.review-card{pointer-events:none;flex:0 0 auto}
+.review-card .card{width:clamp(42px,12vw,62px)!important;height:clamp(62px,17vw,91px)!important;min-width:0!important;box-shadow:3px 4px 0 #c7a9b8!important}
+.review-card .card .corner{font-size:12px!important}.review-card .card .suit{font-size:clamp(24px,7vw,38px)!important}.review-card .card .corner-suit{font-size:10px!important}
+
+
+/* Final responsive fit: preserve the viewport size, compact content, and prevent the last hand row from overlapping the tray. */
+html,body{height:100%;overflow:hidden!important}
+#app{height:100dvh!important;min-height:0!important;box-sizing:border-box!important;overflow:hidden!important;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.topbar{flex:0 0 auto!important;padding:8px 5px 7px!important}
+.brand{font-size:clamp(14px,3.8vw,21px)!important;line-height:1.12!important}
+.creator{font-size:clamp(10px,2.7vw,13px)!important;margin-top:4px!important}
+.screen{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;padding:3px 0!important;gap:3px!important}
+.game-screen{flex:1 1 auto!important;min-height:0!important;grid-template-rows:auto minmax(0,1fr) auto!important;align-content:stretch!important;gap:3px!important;overflow:hidden!important}
+.status-panel{padding:4px!important;margin:1px 0!important}
+.playerrow{margin-top:3px!important;gap:2px!important}
+.playerbox{padding:3px 1px!important;font-size:clamp(8px,2.1vw,11px)!important;gap:1px!important}
+.playerbox span,.playerbox small{font-size:clamp(8px,2vw,10px)!important}
+.turnmessage{font-size:clamp(9px,2.2vw,12px)!important;padding-top:2px!important}
+.hand-panel{display:flex!important;flex:initial!important;height:auto!important;min-height:0!important;overflow:hidden!important;padding:4px!important;margin:0!important}
+.hand-title{flex:0 0 auto!important;font-size:clamp(11px,2.8vw,15px)!important;line-height:1.1!important;margin:0 0 2px!important}
+.hand{flex:1 1 auto!important;height:auto!important;min-height:0!important;overflow:hidden!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(4,minmax(0,1fr))!important;grid-auto-rows:minmax(0,1fr)!important;align-content:stretch!important;align-items:center!important;justify-items:center!important;gap:3px 3px!important;padding:2px 1px!important}
+.hand .card{box-sizing:border-box!important;width:min(100%,clamp(38px,10.8vw,62px))!important;height:min(100%,clamp(46px,7.5vh,72px))!important;max-height:100%!important;min-height:0!important;overflow:hidden!important;border-width:2px!important;box-shadow:3px 3px 0 #c9aab9,0 1px 3px #0002!important}
+.hand .card .corner{left:3px!important;top:3px!important;font-size:clamp(10px,2.7vw,15px)!important}
+.hand .card .suit{font-size:clamp(25px,6.8vw,40px)!important}
+.hand .card .corner-suit{right:3px!important;bottom:3px!important;font-size:clamp(10px,2.5vw,15px)!important}
+.hand .card.selected{transform:translateY(-2px)!important}
+.table-panel{min-height:0!important;overflow:hidden!important;padding:3px!important;margin:0!important;gap:3px!important}
+.tabletray{height:clamp(72px,10.5vh,94px)!important;min-height:0!important;flex:0 0 auto!important}
+.traycell>b{padding:3px 0!important;font-size:clamp(8px,2vw,10px)!important}
+.traycell .card,.traycell.open .card{width:clamp(26px,7vw,38px)!important;height:clamp(38px,5.5vh,50px)!important;margin:2px auto!important}
+.traycell .card .suit{font-size:clamp(16px,4.2vw,22px)!important}
+.traycell small,.traycell.waste small{font-size:clamp(7px,1.8vw,9px)!important;line-height:1!important}
+.traycell.waste .wastebtn{min-height:28px!important;font-size:clamp(21px,4.8vw,29px)!important}
+.actions{flex:0 0 auto!important;gap:3px!important}
+.actions .btn{box-sizing:border-box!important;min-height:clamp(38px,6.3vh,56px)!important;padding:6px 2px!important;font-size:clamp(9px,2.35vw,12px)!important;line-height:1.05!important;overflow-wrap:anywhere}
+@media(max-height:700px){.topbar{padding:5px 4px!important}.brand{font-size:14px!important}.creator{font-size:10px!important;margin-top:2px!important}.status-panel{padding:3px!important}.turnmessage{display:block!important;font-size:9px!important}.hand .card{height:min(100%,6.8vh)!important}.tabletray{height:8.5vh!important}.actions .btn{min-height:5.5vh!important;padding:4px 1px!important;font-size:9px!important}}
+
+
+/* User-requested refinement: reduce the hand's excessive vertical row spacing
+   and use the recovered screen area to enlarge the status/table controls. */
+@media (min-height: 701px) {
+  .game-screen {
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, .78fr) !important;
+    gap: 4px !important;
+  }
+  .hand-panel {
+    min-height: 0 !important;
+    padding: 5px !important;
+  }
+  .hand {
+    grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+    row-gap: 2px !important;
+    column-gap: 4px !important;
+    padding: 2px 1px !important;
+  }
+  .table-panel {
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+  .tabletray {
+    height: clamp(82px, 11.5vh, 104px) !important;
+  }
+  .actions {
+    gap: 4px !important;
+  }
+  .actions .btn {
+    min-height: clamp(42px, 6.8vh, 60px) !important;
+    padding: 7px 3px !important;
+    font-size: clamp(10px, 2.55vw, 13px) !important;
+  }
+  .playerbox {
+    font-size: clamp(9px, 2.25vw, 12px) !important;
+    padding: 4px 2px !important;
+  }
+  .playerbox span, .playerbox small {
+    font-size: clamp(9px, 2.1vw, 11px) !important;
+  }
+}
+@media (max-height: 700px) {
+  .game-screen {
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, .72fr) !important;
+  }
+  .hand { row-gap: 1px !important; }
+}
+
+
+/* Final layout polish: preserve the hand board, anchor tools lower, and give
+   the title/creator comfortable vertical padding so the text never feels clipped. */
+.topbar {
+  box-sizing: border-box !important;
+  padding: 15px 8px 12px !important;
+  min-height: 82px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+.topbar .brand {
+  line-height: 1.2 !important;
+  padding: 1px 0 !important;
+  overflow: visible !important;
+}
+.topbar .creator {
+  line-height: 1.25 !important;
+  margin-top: 1px !important;
+  padding: 1px 0 2px !important;
+}
+.game-screen .table-panel {
+  justify-content: flex-end !important;
+}
+.game-screen .tabletray,
+.game-screen .actions {
+  flex-shrink: 0 !important;
+}
+.game-screen .actions .btn.sort-blue {
+  background: #d9edff !important;
+  border-color: #4b91c8 !important;
+  color: #123f68 !important;
+}
+.game-screen .actions .btn.hint-green,
+.game-screen .actions .btn.declare-green {
+  background: #d9f3df !important;
+  border-color: #4caa68 !important;
+  color: #155b2a !important;
+}
+.game-screen .actions .btn.undo-icon {
+  background: #f4e2f0 !important;
+  border-color: #b66a9b !important;
+  color: #762b59 !important;
+  font-size: clamp(22px, 5.4vw, 29px) !important;
+  line-height: 1 !important;
+}
+@media (max-height: 700px) {
+  .topbar {
+    min-height: 76px !important;
+    padding: 10px 6px 8px !important;
+    gap: 3px !important;
+  }
+}
+
+
+/* Force the requested action colors even if generic button styles are loaded later. */
+#app .game-screen .actions button.btn.sort-blue {
+  background: #d9edff !important;
+  border: 1px solid #4b91c8 !important;
+  color: #123f68 !important;
+}
+#app .game-screen .actions button.btn.hint-green,
+#app .game-screen .actions button.btn.declare-green {
+  background: #d9f3df !important;
+  border: 1px solid #4caa68 !important;
+  color: #155b2a !important;
+}
+#app .game-screen .actions button.btn.undo-icon {
+  background: #f4e2f0 !important;
+  border: 1px solid #b66a9b !important;
+  color: #762b59 !important;
+  font-size: clamp(22px, 5.4vw, 29px) !important;
+  font-weight: 900 !important;
+}
+
+.review-nav{display:flex;gap:8px;margin:10px 0}.review-nav .btn{flex:1;min-width:0}.review-nav .btn:disabled{opacity:.38;filter:grayscale(1);cursor:not-allowed}
+
+/* Original-style final declaration board */
+.final-board-shell{background:#edf1f5;color:#25232a;border:1px solid #c8c8c8;padding:5px;margin:0 auto;width:100%;box-sizing:border-box;font-family:Georgia,'Times New Roman',serif}
+.final-board-heading{background:#0b3b68;color:#ffe6a0;border:2px solid #d9c77f;text-align:center;font-size:clamp(18px,4.6vw,28px);font-weight:900;letter-spacing:.5px;padding:8px 3px}
+.final-board-meta{text-align:center;font-weight:900;font-size:14px;padding:7px 2px;color:#27232b}.final-board-meta span,.final-board-player-score span,.final-board-unmatched span{padding:0 5px}
+.final-board-nav{display:grid;grid-template-columns:1fr 1.1fr;gap:4px;margin-bottom:5px}.final-board-nav .btn{border-radius:0!important;margin:0!important;padding:8px 3px!important;min-height:34px;font-size:clamp(11px,3vw,15px)!important;box-shadow:none!important}
+.final-board-player{border:2px solid #286a5a;background:#fff;text-align:center;margin-bottom:7px}.final-board-player-name{background:#d9f0e6;color:#164b3c;font-size:21px;font-weight:900;padding:7px 3px}.final-board-player-score{font-weight:900;font-size:14px;padding:4px 2px}
+.final-cards-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:3px;background:#fff;border:1px solid #aaa;align-items:stretch}
+.final-card-tile{min-width:0;min-height:145px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:4px;border:3px solid #26784b;background:#bdf2c9;color:#155b32}
+.final-card-tile.impure{border-color:#a65a0b;background:#ffe0ad;color:#7a3908}.final-card-tile.set{border-color:#8535b4;background:#ead3fa;color:#64228b}.final-card-tile.loose{border-color:#666;background:#eee;color:#444}
+.final-card-face{flex:1;min-height:0;display:flex;align-items:stretch}.final-card-face .card{width:100%!important;height:auto!important;min-height:100px!important;aspect-ratio:0.72;box-sizing:border-box;border:2px solid currentColor!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:inherit!important;position:relative;display:block;padding:2px!important}
+.final-card-face .card .corner{font-size:clamp(13px,4vw,25px)!important;left:3px!important;top:0!important;font-weight:900}.final-card-face .card .rank{font-size:clamp(25px,8vw,45px)!important;position:absolute;left:4px;top:22px;line-height:1}.final-card-face .card .suit{font-size:clamp(32px,11vw,58px)!important;position:absolute;left:50%;top:45%;transform:translate(-50%,-40%);line-height:1}.final-card-face .card .corner-suit{font-size:clamp(12px,3vw,21px)!important;right:3px!important;bottom:2px!important}
+.final-card-face .card.red{color:#bf2445!important}.final-card-face .card:not(.red){color:#171717!important}.final-card-label{text-align:center;font-size:clamp(9px,2.8vw,14px);font-weight:900;line-height:1.05;min-height:22px;padding-top:4px;overflow-wrap:anywhere}
+.final-board-groups{text-align:center;font-size:clamp(12px,3.2vw,17px);font-weight:900;line-height:1.35;padding:12px 5px 5px;color:#403541}.final-board-unmatched{text-align:center;color:#08784b;font-weight:900;font-size:clamp(13px,3.5vw,18px);padding:5px 2px}.final-board-penalty{text-align:center;color:#08784b;font-weight:900;font-size:clamp(12px,3.1vw,17px);padding:3px 3px 14px;overflow-wrap:anywhere}.final-board-actions{display:grid;grid-template-columns:1fr;gap:5px}.final-board-actions .btn{border-radius:0!important;margin:0!important;min-height:52px;font-size:clamp(15px,4vw,22px)!important;font-weight:900!important;box-shadow:none!important}.final-board-actions .btn:disabled,.final-board-nav .btn:disabled{opacity:.35;filter:grayscale(1)}
+@media(max-width:380px){.final-cards-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.final-card-tile{min-height:135px}}
+
+
+/* Final board correction: compact card tiles, original card glyph proportions, and a scrollable review page. */
+.screen.final-review-screen{display:block!important;flex:1 1 auto!important;min-height:0!important;height:100%!important;overflow-x:hidden!important;overflow-y:auto!important;padding:4px 0 12px!important;box-sizing:border-box!important;overscroll-behavior:contain!important}
+.final-review-screen .final-board-shell{width:100%;max-width:100%;box-sizing:border-box;padding:4px}
+.final-review-screen .final-cards-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important;padding:3px!important;align-items:stretch!important}
+.final-review-screen .final-card-tile{min-width:0!important;min-height:0!important;height:clamp(112px,27vw,158px)!important;padding:3px!important;border-width:2px!important;justify-content:flex-start!important;gap:2px!important;overflow:hidden!important}
+.final-review-screen .final-card-face{flex:1 1 auto!important;min-height:0!important;height:calc(100% - 20px)!important;display:flex!important;align-items:stretch!important;justify-content:center!important}
+.final-review-screen .final-card-face .card{width:100%!important;height:100%!important;min-height:0!important;max-height:100%!important;aspect-ratio:auto!important;box-sizing:border-box!important;padding:2px!important;border-width:2px!important;overflow:hidden!important}
+.final-review-screen .final-card-face .card .corner{font-size:clamp(8px,2.2vw,12px)!important;left:2px!important;top:1px!important;line-height:1!important}
+.final-review-screen .final-card-face .card .rank{font-size:clamp(16px,4.5vw,25px)!important;left:3px!important;top:16px!important;line-height:1!important}
+.final-review-screen .final-card-face .card .suit{font-size:clamp(22px,6vw,34px)!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;line-height:1!important}
+.final-review-screen .final-card-face .card .corner-suit{font-size:clamp(8px,2vw,12px)!important;right:2px!important;bottom:1px!important;line-height:1!important}
+.final-review-screen .final-card-label{flex:0 0 18px!important;min-height:18px!important;height:18px!important;padding-top:2px!important;font-size:clamp(7px,2vw,11px)!important;line-height:1!important;white-space:normal!important;overflow-wrap:anywhere!important}
+.final-review-screen .final-board-groups{padding-top:8px!important}
+.final-review-screen .final-board-penalty{padding-bottom:8px!important}
+@media(max-width:380px){.final-review-screen .final-cards-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.final-review-screen .final-card-tile{height:clamp(100px,28vw,125px)!important}}

@@ -1,0 +1,6 @@
+{
+  "appId": "com.cd786hassan.indianrummy",
+  "appName": "Indian Professional Rummy",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}

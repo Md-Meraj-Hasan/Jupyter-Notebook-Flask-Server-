@@ -1,0 +1,9 @@
+{
+  "name": "indian-professional-rummy",
+  "version": "1.0.0",
+  "description": "Offline Indian Professional Rummy Android app",
+  "main": "index.js",
+  "scripts": {"build": "echo Static app ready"},
+  "dependencies": {"@capacitor/android": "^7.4.3", "@capacitor/core": "^7.4.3"},
+  "devDependencies": {"@capacitor/cli": "^7.4.3"}
+}

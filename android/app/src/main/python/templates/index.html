@@ -54,8 +54,14 @@
         .icon-btn { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 !important; border:1px solid var(--terminal-border) !important; border-radius:9px !important; background:var(--terminal-toolbar) !important; color:var(--terminal-text) !important; font-size:18px !important; }
         .icon-btn.clear { color:var(--terminal-accent) !important; }
         .icon-btn.stop { color:#e05252 !important; }
-        #script-editor { padding:0; }
-        #script-editor .CodeMirror { min-height:calc(100vh - 145px); height:calc(100vh - 145px); border:0; font-size:15px; }
+        #script-editor, #web-editor { padding:0; }
+        #script-editor .CodeMirror, #web-editor .CodeMirror { min-height:calc(100vh - 205px); height:calc(100vh - 205px); border:0; font-size:15px; }
+        .coding-language-tabs { display:flex; gap:8px; padding:10px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:5; }
+        .coding-language-tab { flex:1; padding:10px 6px; border:1px solid var(--border-color); border-radius:9px; background:var(--cell-bg); color:var(--text-main); font-weight:700; font-size:14px; }
+        .coding-language-tab.active { background:#1976d2; border-color:#1976d2; color:#fff; }
+        #coding-output-page.web-output #console-terminal { display:none; }
+        #coding-web-preview { display:none; position:absolute; top:48px; left:0; right:0; bottom:0; width:100%; height:calc(100% - 48px); border:0; background:#fff; }
+        #coding-output-page.web-output #coding-web-preview { display:block; }
         #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; }
         .output-page-toolbar { display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--terminal-toolbar); border-bottom:1px solid var(--terminal-border); position:absolute; top:0; left:0; right:0; height:48px; box-sizing:border-box; z-index:2; }
         .output-page-toolbar button { cursor:pointer; }
@@ -138,9 +144,15 @@
 <div class="container" id="notebook"></div>
 <button class="fab-add" id="fab-btn" onclick="addNewCell()" title="Add Cell">+</button>
 <div id="coding-page">
+  <div class="coding-language-tabs" role="tablist" aria-label="Coding language">
+    <button class="coding-language-tab active" id="lang-python" onclick="selectCodingLanguage('python')">Python</button>
+    <button class="coding-language-tab" id="lang-html" onclick="selectCodingLanguage('html')">HTML</button>
+    <button class="coding-language-tab" id="lang-css" onclick="selectCodingLanguage('css')">CSS</button>
+  </div>
   <div id="script-editor"><textarea id="script-code">name = input("Enter your name: ")
 print("Hello", name)
 </textarea></div>
+  <div id="web-editor" style="display:none"><textarea id="web-code"></textarea></div>
 </div>
 
 <div id="coding-output-page" aria-label="Python output page">
@@ -150,6 +162,7 @@ print("Hello", name)
     <button class="icon-btn clear" onclick="clearConsole()" title="Clear output" aria-label="Clear output">🧹</button>
     <button class="icon-btn stop" onclick="cancelScript()" title="Stop Python" aria-label="Stop Python">■</button>
   </div>
+  <iframe id="coding-web-preview" title="HTML and CSS output" sandbox="allow-forms allow-modals allow-popups"></iframe>
   <div id="console-terminal" role="log" aria-live="polite">
     <pre id="console-output"></pre>
     <div id="console-input-row"><span id="console-prompt"></span><input id="console-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Python input"></div>
@@ -524,6 +537,57 @@ print("Hello", name)
     }
 
 
+    let codingLanguage = "python";
+    let webEditor = null;
+    let savedHtmlCode = "<!doctype html>\n<html>\n<body>\n  <h1>Hello World!</h1>\n  <p>Write HTML here.</p>\n</body>\n</html>";
+    let savedCssCode = "body {\n  font-family: Arial, sans-serif;\n  padding: 20px;\n  background: #eaf4ff;\n}\nh1 { color: #1565c0; }";
+
+    function selectCodingLanguage(language) {
+        if (!["python", "html", "css"].includes(language)) language = "python";
+        if (codingLanguage === "html" && webEditor) savedHtmlCode = webEditor.getValue();
+        if (codingLanguage === "css" && webEditor) savedCssCode = webEditor.getValue();
+        codingLanguage = language;
+        document.getElementById("lang-python").classList.toggle("active", language === "python");
+        document.getElementById("lang-html").classList.toggle("active", language === "html");
+        document.getElementById("lang-css").classList.toggle("active", language === "css");
+        document.getElementById("script-editor").style.display = language === "python" ? "block" : "none";
+        document.getElementById("web-editor").style.display = language === "python" ? "none" : "block";
+        document.getElementById("top-run-btn").title = language === "python" ? "Run Python code" : (language === "html" ? "Preview HTML with CSS" : "Preview HTML with CSS");
+        if (language !== "python" && !webEditor) {
+            webEditor = CodeMirror.fromTextArea(document.getElementById("web-code"), {
+                mode: "text/html", theme: document.body.classList.contains("night-mode") ? "material-darker" : "neo",
+                lineNumbers: true, indentUnit: 2, matchBrackets: true, viewportMargin: Infinity
+            });
+        }
+        if (webEditor) {
+            webEditor.setOption("mode", language === "html" ? "text/html" : "css");
+            webEditor.setValue(language === "html" ? savedHtmlCode : savedCssCode);
+            webEditor.setSize("100%", "calc(100dvh - 205px)");
+            setTimeout(() => webEditor.refresh(), 50);
+        }
+        if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 50);
+    }
+
+    function showWebOutputPage() {
+        document.getElementById("coding-page").style.display = "none";
+        document.getElementById("coding-output-page").style.display = "block";
+        document.getElementById("coding-output-page").classList.add("web-output");
+        document.body.classList.add("terminal-open");
+        document.getElementById("console-output").textContent = "";
+        document.getElementById("console-input-row").style.display = "none";
+        const html = codingLanguage === "html" ? savedHtmlCode : savedHtmlCode;
+        const css = savedCssCode;
+        const style = `<style>html,body{box-sizing:border-box}body{margin:8px;overflow-wrap:anywhere}*{max-width:100%;} ${css} </style>`;
+        let rendered;
+        if (/<html[\s>]/i.test(html)) {
+            rendered = /<head[\s>]/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1>${style}`) : html.replace(/<html([^>]*)>/i, `<html$1><head>${style}</head>`);
+        } else {
+            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${style}</head><body>${html}</body></html>`;
+        }
+        document.getElementById("coding-web-preview").srcdoc = rendered;
+        window.scrollTo(0, 0);
+    }
+
     function toggleMode() {
         const entering = currentMode === "notebook";
         currentMode = entering ? "coding" : "notebook";
@@ -543,12 +607,14 @@ print("Hello", name)
             scriptEditor.on("focus", () => { lastFocusedEditor = scriptEditor; syncToolbar(); });
         }
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
+        if (entering) selectCodingLanguage(codingLanguage);
         window.scrollTo(0, 0);
     }
 
     function showCodingOutputPage() {
         document.getElementById("coding-page").style.display = "none";
         document.getElementById("coding-output-page").style.display = "block";
+        document.getElementById("coding-output-page").classList.remove("web-output");
         document.body.classList.add("terminal-open");
         document.getElementById("console-output").textContent = "";
         document.getElementById("console-input-row").style.display = "none";
@@ -557,6 +623,9 @@ print("Hello", name)
 
     function backToCodingEditor() {
         document.getElementById("coding-output-page").style.display = "none";
+        document.getElementById("coding-output-page").classList.remove("web-output");
+        if (codingLanguage === "html" && webEditor) savedHtmlCode = webEditor.getValue();
+        if (codingLanguage === "css" && webEditor) savedCssCode = webEditor.getValue();
         document.body.classList.remove("terminal-open");
         document.getElementById("coding-page").style.display = "block";
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
@@ -565,6 +634,14 @@ print("Hello", name)
 
     async function runScript() {
         if (!scriptEditor) toggleMode();
+        if (codingLanguage !== "python") {
+            if (webEditor) {
+                if (codingLanguage === "html") savedHtmlCode = webEditor.getValue();
+                if (codingLanguage === "css") savedCssCode = webEditor.getValue();
+            }
+            showWebOutputPage();
+            return;
+        }
         showCodingOutputPage();
         const output = document.getElementById("console-output");
         const inputRow = document.getElementById("console-input-row");

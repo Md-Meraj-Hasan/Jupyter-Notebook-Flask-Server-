@@ -1,50 +1,27 @@
-# Offline Jupyter Notebook for Android
+# Tkinter Android Native POC — engineering starter
 
-This project packages the existing Flask + CodeMirror notebook UI into an Android WebView and runs the Python backend locally using Chaquopy. It is designed to work without an external server or internet connection after installation.
+This is an isolated investigation package for the existing Jupyter Android app.
+It does **not** claim that Tkinter is already working.
 
-## What is preserved
-- Existing `templates/index.html` and `static/` assets (CodeMirror, themes, notebook controls).
-- Existing `/run` Python execution logic in `jupyter.py`.
-- Pandas DataFrame output and Matplotlib/Seaborn plotting (Agg backend).
-- Bundled CSV datasets.
-- Offline bundled numerical and data-science packages: NumPy, Pandas, SciPy, Matplotlib, Seaborn, Pillow.
-- Offline bundled ML packages: scikit-learn, joblib, threadpoolctl, statsmodels 0.14.5 (plus its dependency `patsy`).
-- Additional packages: SymPy, NetworkX, OpenPyXL, XlsxWriter, xlrd, Requests, BeautifulSoup4, python-dateutil, pytz, packaging, tqdm.
-- Python 3.10 is selected to use current Android-compatible Chaquopy wheels, including scikit-learn.
+## Confirmed from the uploaded APK and live diagnostic
+- Runtime: Chaquopy / CPython 3.10.22, Android arm64-v8a.
+- `tkinter` and `_tkinter` are missing at runtime.
+- The APK contains Chaquopy's `libpython3.10.so`, but no packaged Tcl/Tk libraries or `_tkinter` extension were found in the APK archive.
+- Existing app uses a Flask + Waitress Python backend and a WebView/CodeMirror notebook UI.
 
-## Build APK with GitHub Actions
-1. Extract this ZIP.
-2. Upload the contents to a GitHub repository (the `.github/workflows/build-apk.yml` file must be at the repository root).
-3. Open **Actions** in GitHub.
-4. Select **Build Offline Jupyter Notebook APK** and click **Run workflow** (or push to `main`/`master`).
-5. Open the completed run, scroll to **Artifacts**, and download `offline-jupyter-notebook-debug-apk`.
-6. Extract the artifact ZIP and install `app-debug.apk` on Android.
+## Chosen native research direction
+Investigate the AndroWish Tcl/Tk Android port. It supplies a Tcl/Tk 8.6 port using an SDL2-based rendering backend. This is a promising native runtime source, but it is **not** itself a Python `_tkinter` extension. The next engineering step is to build/package compatible Tcl/Tk libraries and then build `_tkinter` against the exact Chaquopy CPython 3.10 ABI. Only after symbol/ABI checks pass should we connect Tk's event loop to Android lifecycle/touch/keyboard handling.
 
-## Important notes
-- The first GitHub Actions build downloads Android/Gradle/Python package dependencies, so the build runner needs internet. The installed app itself runs its Python engine and notebook UI locally.
-- This is a debug APK for testing. A release APK should be signed before distribution.
-- The APK bundles the packages listed in `android/app/build.gradle`; it cannot contain literally every Python package. Libraries which need unsupported native binaries (for example, standard desktop TensorFlow/PyTorch or some boosting packages) are not included in this build.
-- The larger scientific packages can make the APK large and the first GitHub Actions build slower. The build runner needs internet to download dependencies, but the installed package set is intended to run offline.
-- Chaquopy package compatibility and Android device behavior must be confirmed by a successful GitHub Actions build and on-device test. The original UI and Python endpoint are reused, but Android file-picker/download behavior can differ from a desktop browser.
-- The app WebView only allows navigation to its own `127.0.0.1`/`localhost` notebook server. No remote backend is configured.
+## Important boundaries
+- Keep the current Jupyter app and its working features unchanged.
+- Keep native Tk work isolated until a real `Tk()`, `Label`, `Entry`, `Button`, and `mainloop()` test passes on-device.
+- Do not use `pip install tkinter`: it cannot provide the native Android Tk/Tcl stack.
+- Do not treat an HTML/JavaScript widget imitation as native Tkinter compatibility.
 
+## Files
+- `apk_audit.py`: inspects an APK archive for Python/Tcl/Tk native payload names.
+- `runtime_probe.py`: run inside the app to print runtime ABI, Python version, import results, and likely Tcl/Tk locations.
+- `NATIVE_BUILD_STAGES.md`: staged native integration checklist and pass criteria.
 
-## ML/Data Science package compatibility note
-
-This build uses Chaquopy Python 3.10 because its Android wheel repository includes SciPy and scikit-learn wheels for this Python version. The build pins a compatible set of NumPy, Pandas, SciPy, Matplotlib, Seaborn, scikit-learn, and statsmodels versions. `statsmodels==0.14.5` has an Android CPython 3.10 wheel in the Chaquopy package index.
-
-Important: some older native Android wheels may not work on devices using 16 KB memory pages. This package set is aimed at broad compatibility with standard Android devices (including Android 12 and earlier); test on the target phone before relying on it.
-
-
-### Important build note
-
-The Android project is configured for Chaquopy Python 3.10. In GitHub Actions, `actions/setup-python@v5` installs Python 3.10 without pip caching (there is no requirements.txt or pyproject.toml). Gradle uses `buildPython("python")` so it does not depend on a `python3.10` executable alias. Upload the *contents* of this folder to the repository root, preserving `.github/workflows/` and `android/` paths. Do not upload this outer folder as an extra nested directory.
-
-## Android file actions
-- File → Open is wired to the Android system file picker through `WebChromeClient.onShowFileChooser`.
-- Output PNG download and notebook JSON save use Android's native Create Document dialog through the `AndroidDownloads` JavaScript bridge.
-- After building, test both actions on the target phone.
-
-
-## Tkinter live diagnostic (v1.0.2)
-This version adds `TKINTER_LIVE_DIAGNOSTIC.py` so you can run a real `import tkinter` test in the installed APK and share the exact error. This is diagnostic only; it does not pretend Tkinter is already supported. See `TKINTER_LIVE_DIAGNOSTIC_README.md`.
+## Current status
+This package is an engineering starter/audit, not a compiled APK and not a claim of a successful native build. A working APK requires a successful native build and a real-device GUI test.

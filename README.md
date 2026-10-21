@@ -1,4 +1,4 @@
-# Offline Jupyter Notebook for Android
+# NiceCoding for Android
 
 This project packages the existing Flask + CodeMirror notebook UI into an Android WebView and runs the Python backend locally using Chaquopy. It is designed to work without an external server or internet connection after installation.
 
@@ -16,7 +16,7 @@ This project packages the existing Flask + CodeMirror notebook UI into an Androi
 1. Extract this ZIP.
 2. Upload the contents to a GitHub repository (the `.github/workflows/build-apk.yml` file must be at the repository root).
 3. Open **Actions** in GitHub.
-4. Select **Build Offline Jupyter Notebook APK** and click **Run workflow** (or push to `main`/`master`).
+4. Select **Build NiceCoding APK** and click **Run workflow** (or push to `main`/`master`).
 5. Open the completed run, scroll to **Artifacts**, and download `offline-jupyter-notebook-debug-apk`.
 6. Extract the artifact ZIP and install `app-debug.apk` on Android.
 
@@ -70,3 +70,7 @@ Notebook cells now have a language selector: Python, HTML, or CSS. Run on an HTM
 - Run routing keeps HTML/CSS preview separate from Python execution.
 - Output screen uses compact text labels (Back, Clear, Stop).
 - Keyboard symbol toolbar is hidden while output/preview is open.
+
+
+## NiceCoding shared storage (v1.3.8)
+Open File → Setup Downloads/NiceCoding and choose the **Downloads** folder in Android system picker. The app creates `NiceCoding/Notebook`, `NiceCoding/Python`, and `NiceCoding/HTML_CSS` inside it. The app uses scoped Storage Access Framework access; it does not request broad storage permission. Notebook relative data files should be kept in `NiceCoding/Notebook`.

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Python Jupyter Pro - CD786</title>
+    <title>NiceCoding</title>
 	 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/codemirror.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/material-darker.min.css') }}">
@@ -306,7 +306,7 @@
         <div class="dropdown-content">
             <div onclick="newNotebook()">📄 New</div>
             <div onclick="openCurrentFile()">📂 Open</div>
-            <div onclick="chooseNotebookDataFolder()">📁 Choose Data Folder (CSV)</div>
+            <div onclick="setupNiceCodingStorage()">📁 Setup Downloads/NiceCoding</div>
             <div onclick="saveCurrentFile(false)">💾 Save</div>
             <div onclick="saveCurrentFile(true)">📝 Save As</div>
         </div>
@@ -654,11 +654,11 @@
         input.click();
     }
 
-    function chooseNotebookDataFolder() {
-        if (window.AndroidDownloads && typeof window.AndroidDownloads.chooseDataFolder === 'function') {
-            window.AndroidDownloads.chooseDataFolder();
+    function setupNiceCodingStorage() {
+        if (window.AndroidDownloads && typeof window.AndroidDownloads.setupNiceCodingStorage === 'function') {
+            window.AndroidDownloads.setupNiceCodingStorage();
         } else {
-            alert('Folder selection is available in the Android app.');
+            alert('NiceCoding storage setup is available in the Android app.');
         }
     }
 
@@ -747,6 +747,13 @@
         const reader = new FileReader();
         reader.onload = (e) => {
             const text = String(e.target.result || '');
+            try {
+                if (window.AndroidDownloads && typeof window.AndroidDownloads.importTextFile === 'function') {
+                    const activeWs = ext === 'py' ? 'python' : (['html','htm','css'].includes(ext) ? 'web' : 'notebook');
+                    const b64 = btoa(unescape(encodeURIComponent(text)));
+                    window.AndroidDownloads.importTextFile(name, 'text/plain', b64, activeWs);
+                }
+            } catch (storageImportError) { /* File open should continue even if storage sync fails. */ }
             try {
                 if (['py'].includes(ext)) {
                     selectWorkspace('python');
@@ -882,6 +889,7 @@
         if (!['notebook','python','web'].includes(workspace)) workspace = 'notebook';
         currentWorkspace = workspace;
         currentMode = workspace === 'notebook' ? 'notebook' : 'coding';
+        if (window.AndroidDownloads && typeof window.AndroidDownloads.setActiveWorkspace === 'function') window.AndroidDownloads.setActiveWorkspace(workspace);
         document.getElementById('mode-menu').style.display = 'none';
         document.getElementById('notebook').style.display = workspace === 'notebook' ? 'flex' : 'none';
         document.getElementById('fab-btn').style.display = workspace === 'notebook' ? 'block' : 'none';

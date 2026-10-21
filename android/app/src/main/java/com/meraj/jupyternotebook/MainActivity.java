@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 1001;
     private static final int CREATE_DOCUMENT_REQUEST = 1002;
     private static final int DATA_FOLDER_REQUEST = 1003;
+    private static final int NICECODING_TREE_REQUEST = 1004;
     private byte[] pendingDownloadBytes;
     private String pendingSaveKey;
     private String pendingSaveMime;
@@ -71,6 +72,30 @@ public class MainActivity extends Activity {
                 handler.post(() -> {
                     android.content.SharedPreferences prefs = getSharedPreferences("saved_file_uris", MODE_PRIVATE);
                     String uriText = saveAs ? null : prefs.getString(finalKey, null);
+                    String workspaceName = finalKey.startsWith("python:") ? "python" : (finalKey.startsWith("web:") ? "web" : "notebook");
+                    String managedFolder = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + workspaceName, null);
+                    if (managedFolder != null) {
+                        try {
+                            Uri folderUri = Uri.parse(managedFolder);
+                            if (uriText != null && !saveAs) {
+                                Uri existing = Uri.parse(uriText);
+                                try (OutputStream output = getContentResolver().openOutputStream(existing, "wt")) {
+                                    if (output == null) throw new java.io.IOException("Cannot update existing file");
+                                    output.write(decoded); output.flush();
+                                }
+                            } else {
+                                writeSafFile(folderUri, finalName, finalMime, decoded, !saveAs);
+                                Uri created = findChildFile(Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", folderUri.toString())), folderUri, finalName);
+                                if (created != null) prefs.edit().putString(finalKey, created.toString()).apply();
+                            }
+                            writeBytes(new File(workspaceLocalDir(workspaceName), finalName), decoded);
+                            if (webView != null) webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'Saved in Downloads/NiceCoding')", null);
+                            return;
+                        } catch (Exception storageError) {
+                            notifyJs(false, "NiceCoding storage error: " + storageError.getMessage());
+                            return;
+                        }
+                    }
                     if (uriText != null) {
                         try {
                             Uri uri = Uri.parse(uriText);
@@ -112,17 +137,147 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void chooseDataFolder() {
+        public void setupNiceCodingStorage() {
             handler.post(() -> {
                 try {
                     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-                    startActivityForResult(intent, DATA_FOLDER_REQUEST);
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                    intent.putExtra("android.content.extra.SHOW_ADVANCED", true);
+                    startActivityForResult(intent, NICECODING_TREE_REQUEST);
                 } catch (Exception e) {
-                    if (webView != null) webView.evaluateJavascript("alert('Cannot open folder picker')", null);
+                    notifyJs(false, "Cannot open Android folder picker. Please try again.");
                 }
             });
         }
+
+        @JavascriptInterface
+        public void setActiveWorkspace(String workspace) {
+            final String name = safeWorkspace(workspace);
+            handler.post(() -> {
+                try {
+                    File local = workspaceLocalDir(name);
+                    local.mkdirs();
+                    String folderUri = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + name, null);
+                    if (folderUri != null) {
+                        Uri uri = Uri.parse(folderUri);
+                        copyTreeContents(uri, DocumentsContract.getDocumentId(uri), local);
+                    }
+                    Python.getInstance().getModule("jupyter").callAttr("set_workspace_dir", local.getAbsolutePath());
+                } catch (Exception e) {
+                    // Workspace switching must never crash the app if external storage was revoked.
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void importTextFile(String filename, String mimeType, String base64Data, String workspace) {
+            try {
+                byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
+                String name = safeFilename(filename);
+                String ws = safeWorkspace(workspace);
+                handler.post(() -> {
+                    try {
+                        File local = workspaceLocalDir(ws); local.mkdirs();
+                        writeBytes(new File(local, name), bytes);
+                        String folderUri = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + ws, null);
+                        if (folderUri != null) writeSafFile(Uri.parse(folderUri), name, mimeType, bytes, true);
+                    } catch (Exception ignored) { }
+                });
+            } catch (Exception ignored) { }
+        }
+    }
+
+    private String safeWorkspace(String value) {
+        if ("python".equals(value)) return "python";
+        if ("web".equals(value)) return "web";
+        return "notebook";
+    }
+
+    private String safeFilename(String value) {
+        String name = (value == null || value.trim().isEmpty()) ? "untitled" : value.trim();
+        return name.replaceAll("[\\/:*?\"<>|]", "_");
+    }
+
+    private File workspaceLocalDir(String workspace) {
+        return new File(new File(getFilesDir(), "NiceCoding"), safeWorkspace(workspace));
+    }
+
+    private void notifyJs(boolean ok, String message) {
+        String safe = jsSafe(message);
+        if (webView != null) webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(" + ok + ", '" + safe + "')", null);
+    }
+
+    private void writeBytes(File file, byte[] bytes) throws Exception {
+        File parent = file.getParentFile(); if (parent != null) parent.mkdirs();
+        try (FileOutputStream out = new FileOutputStream(file)) { out.write(bytes); out.flush(); }
+    }
+
+    private Uri findOrCreateDirectory(Uri treeUri, Uri parentUri, String name) throws Exception {
+        String parentId = DocumentsContract.getDocumentId(parentUri);
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentId);
+        String[] cols = {DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE};
+        try (Cursor c = getContentResolver().query(children, cols, null, null, null)) {
+            if (c != null) while (c.moveToNext()) {
+                if (name.equals(c.getString(1)) && DocumentsContract.Document.MIME_TYPE_DIR.equals(c.getString(2)))
+                    return DocumentsContract.buildDocumentUriUsingTree(treeUri, c.getString(0));
+            }
+        }
+        Uri created = DocumentsContract.createDocument(getContentResolver(), parentUri, DocumentsContract.Document.MIME_TYPE_DIR, name);
+        if (created == null) throw new java.io.IOException("Cannot create folder " + name);
+        return created;
+    }
+
+    private Uri findChildFile(Uri treeUri, Uri parentUri, String name) throws Exception {
+        String parentId = DocumentsContract.getDocumentId(parentUri);
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentId);
+        String[] cols = {DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE};
+        try (Cursor c = getContentResolver().query(children, cols, null, null, null)) {
+            if (c != null) while (c.moveToNext()) {
+                if (name.equals(c.getString(1)) && !DocumentsContract.Document.MIME_TYPE_DIR.equals(c.getString(2)))
+                    return DocumentsContract.buildDocumentUriUsingTree(treeUri, c.getString(0));
+            }
+        }
+        return null;
+    }
+
+    private void writeSafFile(Uri folderUri, String filename, String mime, byte[] bytes, boolean replaceExisting) throws Exception {
+        Uri treeUri = Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", folderUri.toString()));
+        Uri target = replaceExisting ? findChildFile(treeUri, folderUri, filename) : null;
+        if (target != null) {
+            try (OutputStream out = getContentResolver().openOutputStream(target, "wt")) {
+                if (out == null) throw new java.io.IOException("Cannot write file");
+                out.write(bytes); out.flush();
+            }
+        } else {
+            String type = (mime == null || mime.trim().isEmpty()) ? "application/octet-stream" : mime;
+            Uri created = DocumentsContract.createDocument(getContentResolver(), folderUri, type, filename);
+            if (created == null) throw new java.io.IOException("Cannot create " + filename);
+            try (OutputStream out = getContentResolver().openOutputStream(created, "wt")) {
+                if (out == null) throw new java.io.IOException("Cannot write file");
+                out.write(bytes); out.flush();
+            }
+        }
+    }
+
+    private void configureNiceCodingTree(Uri treeUri) throws Exception {
+        Uri rootDoc = DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri));
+        Uri nice = findOrCreateDirectory(treeUri, rootDoc, "NiceCoding");
+        Uri notebook = findOrCreateDirectory(treeUri, nice, "Notebook");
+        Uri python = findOrCreateDirectory(treeUri, nice, "Python");
+        Uri web = findOrCreateDirectory(treeUri, nice, "HTML_CSS");
+        android.content.SharedPreferences.Editor edit = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).edit();
+        edit.putString("tree_uri", treeUri.toString());
+        edit.putString("folder_notebook", notebook.toString());
+        edit.putString("folder_python", python.toString());
+        edit.putString("folder_web", web.toString());
+        edit.apply();
+        for (String ws : new String[]{"notebook", "python", "web"}) {
+            File local = workspaceLocalDir(ws);
+            if (!local.exists()) local.mkdirs();
+            Uri folder = Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + ws, ""));
+            copyTreeContents(folder, DocumentsContract.getDocumentId(folder), local);
+        }
+        Python.getInstance().getModule("jupyter").callAttr("set_workspace_dir", workspaceLocalDir("notebook").getAbsolutePath());
     }
 
     @Override
@@ -262,6 +417,20 @@ public class MainActivity extends Activity {
                 }
             } else if (webView != null) {
                 webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Save cancelled')", null);
+            }
+            return;
+        }
+        if (requestCode == NICECODING_TREE_REQUEST) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                Uri treeUri = data.getData();
+                try {
+                    int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    try { getContentResolver().takePersistableUriPermission(treeUri, flags); } catch (Exception ignored) { }
+                    configureNiceCodingTree(treeUri);
+                    notifyJs(true, "NiceCoding folders created. Use Downloads/NiceCoding/Notebook, Python and HTML_CSS.");
+                } catch (Exception e) {
+                    notifyJs(false, "Could not set up NiceCoding folders: " + e.getMessage());
+                }
             }
             return;
         }

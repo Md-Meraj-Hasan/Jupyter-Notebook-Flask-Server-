@@ -37,12 +37,16 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 1001;
     private static final int CREATE_DOCUMENT_REQUEST = 1002;
     private byte[] pendingDownloadBytes;
+    private String pendingSaveKey;
+    private String pendingSaveMime;
+    private boolean pendingSaveAs;
 
     /** Native bridge for downloads, because Android WebView does not reliably honor
      *  HTMLAnchorElement.download for data/blob URLs. */
     public final class AndroidDownloads {
         @JavascriptInterface
-        public void saveBase64File(String filename, String mimeType, String base64Data) {
+        public void saveBase64File(String filename, String mimeType, String base64Data,
+                                   boolean saveAs, String saveKey) {
             try {
                 byte[] decoded = Base64.decode(base64Data, Base64.DEFAULT);
                 String safeName = (filename == null || filename.trim().isEmpty()) ? "download" : filename;
@@ -50,16 +54,38 @@ public class MainActivity extends Activity {
                 final String finalName = safeName;
                 final String finalMime = (mimeType == null || mimeType.trim().isEmpty())
                         ? "application/octet-stream" : mimeType;
+                final String finalKey = (saveKey == null || saveKey.trim().isEmpty()) ? finalName : saveKey;
                 handler.post(() -> {
+                    android.content.SharedPreferences prefs = getSharedPreferences("saved_file_uris", MODE_PRIVATE);
+                    String uriText = saveAs ? null : prefs.getString(finalKey, null);
+                    if (uriText != null) {
+                        try {
+                            Uri uri = Uri.parse(uriText);
+                            try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                                if (output == null) throw new java.io.IOException("Unable to open existing file");
+                                output.write(decoded);
+                                output.flush();
+                            }
+                            if (webView != null) webView.evaluateJavascript(
+                                    "window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'File updated successfully')", null);
+                            return;
+                        } catch (Exception writeError) {
+                            // If the stored destination was removed or revoked, ask for a new one.
+                        }
+                    }
                     pendingDownloadBytes = decoded;
+                    pendingSaveKey = finalKey;
+                    pendingSaveMime = finalMime;
+                    pendingSaveAs = saveAs;
                     Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.setType(finalMime);
                     intent.putExtra(Intent.EXTRA_TITLE, finalName);
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
                     try {
                         startActivityForResult(intent, CREATE_DOCUMENT_REQUEST);
                     } catch (Exception e) {
-                        pendingDownloadBytes = null;
+                        pendingDownloadBytes = null; pendingSaveKey = null;
                         if (webView != null) webView.evaluateJavascript(
                                 "window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Cannot open Save dialog')", null);
                     }
@@ -186,12 +212,20 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == CREATE_DOCUMENT_REQUEST) {
             byte[] bytes = pendingDownloadBytes;
+            String saveKey = pendingSaveKey;
             pendingDownloadBytes = null;
+            pendingSaveKey = null;
             if (resultCode == RESULT_OK && data != null && data.getData() != null && bytes != null) {
                 Uri uri = data.getData();
-                try (OutputStream output = getContentResolver().openOutputStream(uri)) {
-                    if (output == null) throw new java.io.IOException("Unable to open selected destination");
-                    output.write(bytes);
+                try {
+                    int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    try { getContentResolver().takePersistableUriPermission(uri, takeFlags); } catch (Exception ignored) { }
+                    try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                        if (output == null) throw new java.io.IOException("Unable to open selected destination");
+                        output.write(bytes);
+                        output.flush();
+                    }
+                    if (saveKey != null) getSharedPreferences("saved_file_uris", MODE_PRIVATE).edit().putString(saveKey, uri.toString()).apply();
                     if (webView != null) webView.evaluateJavascript(
                             "window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'File saved successfully')", null);
                 } catch (Exception e) {

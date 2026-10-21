@@ -625,8 +625,11 @@
     function downloadTextFile(filename, mime, text) {
         if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
             const base64 = btoa(unescape(encodeURIComponent(text)));
-            window.AndroidDownloads.saveBase64File(filename, mime, base64);
+            const saveKey = currentWorkspace + ':' + (currentWorkspace === 'web' ? codingLanguage : 'main') + ':' + filename;
+            window.AndroidDownloads.saveBase64File(filename, mime, base64, !!window.__saveAsRequested, saveKey);
+            window.__saveAsRequested = false;
         } else {
+            window.__saveAsRequested = false;
             const a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([text], {type:mime}));
             a.download = filename;
@@ -636,6 +639,8 @@
     }
 
     function saveCurrentFile(saveAs) {
+        // Only Save As forces a new destination. Ordinary Save reuses the last URI saved by Android.
+        window.__saveAsRequested = !!saveAs;
         let defaultName = currentFileName;
         let extension = '.ipynb', mime = 'application/x-ipynb+json', content = '';
         if (currentWorkspace === 'python') {

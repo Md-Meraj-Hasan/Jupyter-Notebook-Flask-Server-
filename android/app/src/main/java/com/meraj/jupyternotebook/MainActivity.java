@@ -51,6 +51,13 @@ public class MainActivity extends Activity {
      *  HTMLAnchorElement.download for data/blob URLs. */
     public final class AndroidDownloads {
         @JavascriptInterface
+        public void saveBase64Image(String filename, String mimeType, String base64Data) {
+            // Image exports always ask for a destination; this avoids signature mismatch
+            // with the Save/Save As bridge used by text files.
+            saveBase64File(filename, mimeType, base64Data, true, filename);
+        }
+
+        @JavascriptInterface
         public void saveBase64File(String filename, String mimeType, String base64Data,
                                    boolean saveAs, String saveKey) {
             try {

@@ -82,7 +82,8 @@
         }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-body); color: var(--text-main); transition: 0.2s; min-height: 100vh; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         
-        .menu-bar { background: var(--toolbar-bg); padding: 3px 8px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .menu-bar { background: var(--toolbar-bg); padding: 3px 8px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; position: fixed; top: 0; left: 0; right: 0; z-index: 10000; box-sizing: border-box; min-height: 48px; }
+        body { padding-top: 48px; }
         .dropdown { position: relative; }
         .menu-item { cursor: pointer; font-size: 14px; padding: 8px 15px; display: flex; align-items: center; gap: 5px; color: var(--menu-text); }
         .menu-bar > .btn { margin-left: 4px !important; padding: 4px 6px !important; font-size: 12px !important; line-height: 1.2; border-radius: 3px !important; box-shadow: none !important; }
@@ -285,6 +286,16 @@
         .coding-language-tab.active { border-bottom-color: var(--menu-text, currentColor) !important; font-weight: 600 !important; opacity: 1; }
         .coding-language-tab:not(.active) { opacity: .72; }
         .coding-language-tab:focus-visible { outline: 1px dotted currentColor !important; outline-offset: -2px; }
+
+        /* v1.3.7 targeted: fill the available coding viewport without changing editor/tool logic. */
+        #coding-page { height:calc(100dvh - 48px) !important; min-height:0 !important; padding-bottom:0 !important; overflow:hidden !important; box-sizing:border-box; }
+        #script-editor, #web-editor { min-height:0 !important; height:100%; }
+        #script-editor .CodeMirror { height:calc(100dvh - 48px) !important; min-height:0 !important; max-height:none !important; }
+        #web-editor .CodeMirror { height:calc(100dvh - 88px) !important; min-height:0 !important; max-height:none !important; }
+        #script-editor .CodeMirror-scroll, #web-editor .CodeMirror-scroll { height:100% !important; max-height:none !important; min-height:0 !important; overflow:auto !important; }
+        /* Keep the fixed menu visible while notebook cells scroll. */
+        body:not(.terminal-open) #notebook { scroll-margin-top:48px; }
+
 </style>
 </head>
 <body>
@@ -569,7 +580,7 @@
             const dataUrl = canvas.toDataURL("image/png");
             const base64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
             if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
-                window.AndroidDownloads.saveBase64File(`cell-${id}-analysis.png`, "image/png", base64);
+                window.AndroidDownloads.saveBase64Image(`cell-${id}-analysis.png`, "image/png", base64);
             } else {
                 const link = document.createElement("a");
                 link.download = `cell-${id}-analysis.png`;
@@ -613,7 +624,26 @@
 
     function deleteCell(id) { if(confirm("Delete?")) { document.getElementById(`cell-${id}`).remove(); delete editors[id]; } }
     
-    function newNotebook() { if(confirm("Clear?")) { document.getElementById('notebook').innerHTML = ""; cellCount = 0; editors = {}; addNewCell(); } }
+    function newNotebook() {
+        if (!confirm("Clear current workspace?")) return;
+        if (currentWorkspace === 'python') {
+            if (scriptEditor) scriptEditor.setValue('');
+            else document.getElementById('script-code').value = '';
+            currentFileName = '';
+            return;
+        }
+        if (currentWorkspace === 'web') {
+            savedHtmlCode = '';
+            savedCssCode = '';
+            if (webEditor) webEditor.setValue('');
+            else document.getElementById('web-code').value = '';
+            currentFileName = '';
+            return;
+        }
+        document.getElementById('notebook').innerHTML = '';
+        cellCount = 0; editors = {}; currentFileName = '';
+        addNewCell();
+    }
 
     function openCurrentFile() {
         const input = document.getElementById('file-input');

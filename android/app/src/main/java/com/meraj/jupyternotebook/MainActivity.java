@@ -231,11 +231,11 @@ public class MainActivity extends Activity {
                 if ("true".equals(value)) {
                     return;
                 }
-                if (webView != null && webView.canGoBack()) {
-                    webView.goBack();
-                } else {
-                    MainActivity.super.onBackPressed();
-                }
+                // This app is a single-page local UI. WebView history can contain
+                // transient server routes and returning through it may show a blank/start page.
+                // After closing the output overlay, leave the activity only when Back is pressed
+                // from the main workspace; never navigate the WebView's internal history.
+                MainActivity.super.onBackPressed();
             }
         );
     }

@@ -117,7 +117,7 @@
         #coding-output-page.web-output #console-terminal { display:none; }
         #coding-web-preview { display:none; position:absolute; top:36px; left:0; right:0; bottom:0; width:100%; height:calc(100% - 36px); border:0; background:#fff; overflow:auto; -webkit-overflow-scrolling:touch; }
         #coding-output-page.web-output #coding-web-preview { display:block; }
-        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; min-height:100%; }
+        #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; min-height:100%; overscroll-behavior:contain; touch-action:pan-y; -webkit-tap-highlight-color:transparent; }
         .output-page-toolbar { display:flex; align-items:center; gap:4px; padding:3px 8px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:absolute; top:0; left:0; right:0; height:36px; box-sizing:border-box; z-index:2; }
         .output-page-toolbar button { cursor:pointer; }
         .output-page-toolbar button:active, .coding-language-tab:active { transform:none; filter:none; }
@@ -192,7 +192,7 @@
         #script-editor .CodeMirror-scroll, #web-editor .CodeMirror-scroll { height:auto !important; max-height:none !important; min-height:calc(100vh - 205px); overflow-x:auto !important; overflow-y:hidden !important; }
         .output-container { max-height:none !important; overflow-x:auto !important; overflow-y:visible !important; }
         #coding-output-page { overflow:hidden !important; }
-        #coding-output-page #console-terminal { overflow-x:hidden !important; overflow-y:auto !important; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
+        #coding-output-page #console-terminal { overflow-x:hidden !important; overflow-y:auto !important; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
         #coding-web-preview { overflow:auto !important; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 
         /* v1.0.9: fix CodeMirror internal vertical scrolling for long source files */
@@ -256,6 +256,27 @@
         .night-mode .cm-s-material-darker .cm-comment { color:#8b949e !important; }
         .night-mode .cm-s-material-darker .cm-def, .night-mode .cm-s-material-darker .cm-variable-2, .night-mode .cm-s-material-darker .cm-tag { color:#79c0ff !important; }
         .night-mode .cm-s-material-darker .cm-property, .night-mode .cm-s-material-darker .cm-attribute { color:#ffa657 !important; }
+        /* v1.3.1: dark-theme syntax contrast overrides for every common token. */
+        .night-mode .CodeMirror, .night-mode .CodeMirror pre { color:#e6edf3 !important; background:#202124 !important; }
+        .night-mode .cm-s-material-darker .cm-variable,
+        .night-mode .cm-s-material-darker .cm-variable-2,
+        .night-mode .cm-s-material-darker .cm-variable-3 { color:#e6edf3 !important; }
+        .night-mode .cm-s-material-darker .cm-operator,
+        .night-mode .cm-s-material-darker .cm-bracket,
+        .night-mode .cm-s-material-darker .cm-punctuation { color:#c9d1d9 !important; }
+        .night-mode .cm-s-material-darker .cm-number,
+        .night-mode .cm-s-material-darker .cm-atom,
+        .night-mode .cm-s-material-darker .cm-qualifier { color:#d2a8ff !important; }
+        .night-mode .cm-s-material-darker .cm-builtin,
+        .night-mode .cm-s-material-darker .cm-def { color:#79c0ff !important; }
+        .night-mode .cm-s-material-darker .cm-string,
+        .night-mode .cm-s-material-darker .cm-string-2 { color:#ff7b72 !important; }
+        .night-mode .cm-s-material-darker .cm-keyword { color:#7ee787 !important; font-weight:700 !important; }
+        .night-mode .cm-s-material-darker .cm-comment { color:#a1aab5 !important; }
+        .night-mode .cm-s-material-darker .cm-tag { color:#7ee787 !important; }
+        .night-mode .cm-s-material-darker .cm-attribute,
+        .night-mode .cm-s-material-darker .cm-property { color:#ffa657 !important; }
+        .night-mode .CodeMirror-selected { background:#264f78 !important; }
 
 
         /* v1.2.9: subtle native active language indicator */
@@ -767,47 +788,13 @@
         document.getElementById("console-input-row").style.display = "none";
         const html = codingLanguage === "html" ? savedHtmlCode : savedHtmlCode;
         const css = savedCssCode;
-        const style = `<style>html{box-sizing:border-box;min-height:100%;overflow-x:hidden;overflow-y:auto}body{box-sizing:border-box;min-height:100%;margin:8px;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere;-webkit-overflow-scrolling:touch}*{max-width:100%;box-sizing:border-box;} ${css} 
-        /* v1.2.6: compact HTML/CSS selector like the notebook's native controls. */
-        .coding-language-tabs { gap:4px !important; padding:2px 8px !important; min-height:0 !important; height:30px !important; box-sizing:border-box !important; align-items:center !important; }
-        .coding-language-tabs .coding-language-tab { flex:0 0 auto !important; width:auto !important; min-width:0 !important; min-height:0 !important; height:24px !important; padding:2px 9px !important; margin:0 !important; border:1px solid var(--border-color) !important; border-radius:3px !important; background:transparent !important; color:var(--menu-text) !important; font:400 11px/1.1 'Segoe UI',sans-serif !important; font-weight:400 !important; box-shadow:none !important; }
-        .coding-language-tabs .coding-language-tab.active { background:var(--toolbar-bg) !important; color:var(--menu-text) !important; border-color:var(--border-color) !important; font-weight:400 !important; }
-        .coding-language-tabs .coding-language-tab:focus, .coding-language-tabs .coding-language-tab:hover { outline:none !important; box-shadow:none !important; filter:none !important; }
-        #script-editor .CodeMirror, #web-editor .CodeMirror { min-height:calc(100dvh - 155px) !important; }
-        #script-editor .CodeMirror-scroll, #web-editor .CodeMirror-scroll { min-height:calc(100dvh - 155px) !important; }
-        /* Keep the Android/phone keyboard available for input() in Python output. */
-        #coding-output-page #console-input { display:inline-block !important; pointer-events:auto !important; user-select:text !important; -webkit-user-select:text !important; }
-        #coding-output-page #console-input-row { scroll-margin-bottom:40vh; }
-        #coding-output-page #console-terminal { padding-bottom:calc(16px + env(safe-area-inset-bottom) + 35vh); }
-
-        /* v1.2.7: keep CodeMirror line numbers/gutter pinned while source scrolls horizontally. */
-        #script-editor .CodeMirror-gutters,
-        #web-editor .CodeMirror-gutters {
-            position: sticky !important;
-            left: 0 !important;
-            z-index: 8 !important;
-            align-self: flex-start !important;
-            flex-shrink: 0 !important;
-            background: var(--gutter-bg, #f7f7f7) !important;
-        }
-        #script-editor .CodeMirror-linenumber,
-        #web-editor .CodeMirror-linenumber {
-            position: relative !important;
-            white-space: nowrap !important;
-            text-align: right !important;
-            padding: 0 4px 0 2px !important;
-        }
-        #script-editor .CodeMirror-scroll,
-        #web-editor .CodeMirror-scroll {
-            overflow-x: auto !important;
-            overflow-y: auto !important;
-            scrollbar-gutter: stable;
-        }
-        .night-mode #script-editor .CodeMirror-gutters,
-        .night-mode #web-editor .CodeMirror-gutters {
-            background: #292b2f !important;
-        }
-</style>`;
+        const style = `<style>
+          html { box-sizing:border-box; min-height:100%; overflow-x:hidden; overflow-y:auto; }
+          body { box-sizing:border-box; min-height:100%; margin:8px; overflow-x:hidden; overflow-y:auto; overflow-wrap:anywhere; -webkit-overflow-scrolling:touch; }
+          *, *::before, *::after { max-width:100%; box-sizing:border-box; }
+          img, video, iframe, table { max-width:100%; }
+          ${css}
+        </style>`;
         let rendered;
         if (/<html[\s>]/i.test(html)) {
             rendered = /<head[\s>]/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1>${style}`) : html.replace(/<html([^>]*)>/i, `<html$1><head>${style}</head>`);

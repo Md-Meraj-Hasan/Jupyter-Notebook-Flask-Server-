@@ -389,7 +389,11 @@
         if (window.visualViewport) {
             const viewport = window.visualViewport;
             const isKeyboardOpen = viewport.height < initialHeight * 0.9;
-            if (document.body.classList.contains('terminal-open')) {
+            // Keep the original toolbar behavior in Notebook/Python/HTML/CSS.
+            // The only added rule is to hide it while the dedicated output page is visible.
+            const outputPage = document.getElementById('coding-output-page');
+            if (document.body.classList.contains('terminal-open') ||
+                (outputPage && getComputedStyle(outputPage).display !== 'none')) {
                 toolbar.style.display = 'none';
                 return;
             }

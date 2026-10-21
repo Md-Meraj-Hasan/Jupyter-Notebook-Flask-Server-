@@ -112,6 +112,16 @@ public class MainActivity extends Activity {
                 filePathCallback = callback;
                 try {
                     Intent intent = fileChooserParams.createIntent();
+                    // .ipynb is JSON content but Android document providers often expose
+                    // it as application/octet-stream, so a narrow MIME filter hides it.
+                    // Keep the system picker broad and let the HTML input validate extensions.
+                    intent.setAction(Intent.ACTION_OPEN_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("*/*");
+                    intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                            "application/x-ipynb+json", "application/json", "text/plain",
+                            "application/octet-stream", "text/html", "text/css"
+                    });
                     startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     return true;
                 } catch (Exception e) {

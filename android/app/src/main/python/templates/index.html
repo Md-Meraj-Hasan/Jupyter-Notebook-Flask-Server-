@@ -661,9 +661,16 @@
             content = JSON.stringify({cells, metadata:{kernelspec:{display_name:'Python 3',language:'python',name:'python3'},language_info:{name:'python',file_extension:'.py',mimetype:'text/x-python'}},nbformat:4,nbformat_minor:5}, null, 2);
             defaultName = defaultName || 'notebook.ipynb';
         }
-        let filename = defaultName;
-        if (saveAs || !currentFileName) {
-            const suggested = defaultName;
+        // Keep the filename suggestion aligned with the active workspace. A previous
+        // style.css/index.html name must not leak into Notebook Save As (or vice versa).
+        const activeDefaultName = defaultName && defaultName.toLowerCase().endsWith(extension)
+            ? defaultName : (currentWorkspace === 'notebook' ? 'notebook.ipynb'
+                : currentWorkspace === 'python' ? 'script.py'
+                : (codingLanguage === 'css' ? 'style.css' : 'index.html'));
+        let filename = (currentFileName && currentFileName.toLowerCase().endsWith(extension))
+            ? currentFileName : activeDefaultName;
+        if (saveAs || !currentFileName || !currentFileName.toLowerCase().endsWith(extension)) {
+            const suggested = activeDefaultName;
             filename = prompt('Save file name (extension will be kept appropriate):', suggested);
             if (!filename) return;
             filename = filename.trim();
@@ -790,20 +797,20 @@
         document.body.classList.add("terminal-open");
         document.getElementById("console-output").textContent = "";
         document.getElementById("console-input-row").style.display = "none";
-        const html = codingLanguage === "html" ? savedHtmlCode : savedHtmlCode;
+        const html = savedHtmlCode;
         const css = savedCssCode;
         const style = `<style>
-          html { box-sizing:border-box; min-height:100%; overflow-x:hidden; overflow-y:auto; }
-          body { box-sizing:border-box; min-height:100%; margin:8px; overflow-x:hidden; overflow-y:auto; overflow-wrap:anywhere; -webkit-overflow-scrolling:touch; }
+          html { touch-action: pan-y; box-sizing:border-box; min-height:100%; overflow-x:hidden; overflow-y:auto; }
+          body { touch-action: pan-y; box-sizing:border-box; min-height:100%; margin:8px; overflow-x:hidden; overflow-y:auto; overflow-wrap:anywhere; -webkit-overflow-scrolling:touch; }
           *, *::before, *::after { max-width:100%; box-sizing:border-box; }
           img, video, iframe, table { max-width:100%; }
           ${css}
         </style>`;
         let rendered;
         if (/<html[\s>]/i.test(html)) {
-            rendered = /<head[\s>]/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1>${style}`) : html.replace(/<html([^>]*)>/i, `<html$1><head>${style}</head>`);
+            rendered = /<head[\s>]/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">${style}`) : html.replace(/<html([^>]*)>/i, `<html$1><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">${style}</head>`);
         } else {
-            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${style}</head><body>${html}</body></html>`;
+            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">${style}</head><body>${html}</body></html>`;
         }
         document.getElementById("coding-web-preview").srcdoc = rendered;
         window.scrollTo(0, 0);

@@ -257,6 +257,13 @@
         .night-mode .cm-s-material-darker .cm-def, .night-mode .cm-s-material-darker .cm-variable-2, .night-mode .cm-s-material-darker .cm-tag { color:#79c0ff !important; }
         .night-mode .cm-s-material-darker .cm-property, .night-mode .cm-s-material-darker .cm-attribute { color:#ffa657 !important; }
 
+
+        /* v1.2.9: subtle native active language indicator */
+        .coding-language-tabs { align-items: stretch; }
+        .coding-language-tab { position: relative; min-height: 26px; padding: 3px 9px 5px !important; border-bottom: 2px solid transparent !important; }
+        .coding-language-tab.active { border-bottom-color: var(--menu-text, currentColor) !important; font-weight: 600 !important; opacity: 1; }
+        .coding-language-tab:not(.active) { opacity: .72; }
+        .coding-language-tab:focus-visible { outline: 1px dotted currentColor !important; outline-offset: -2px; }
 </style>
 </head>
 <body>
@@ -291,9 +298,7 @@
     <button class="coding-language-tab active" id="lang-html" onclick="selectCodingLanguage('html')">HTML</button>
     <button class="coding-language-tab" id="lang-css" onclick="selectCodingLanguage('css')">CSS</button>
   </div>
-  <div id="script-editor"><textarea id="script-code">name = input("Enter your name: ")
-print("Hello", name)
-</textarea></div>
+  <div id="script-editor"><textarea id="script-code" placeholder="Write Python code here..."></textarea></div>
   <div id="web-editor" style="display:none"><textarea id="web-code"></textarea></div>
 </div>
 
@@ -719,8 +724,8 @@ print("Hello", name)
 
     let codingLanguage = "python";
     let webEditor = null;
-    let savedHtmlCode = "<!doctype html>\n<html>\n<body>\n  <h1>Hello World!</h1>\n  <p>Write HTML here.</p>\n</body>\n</html>";
-    let savedCssCode = "body {\n  font-family: Arial, sans-serif;\n  padding: 20px;\n  background: #eaf4ff;\n}\nh1 { color: #1565c0; }";
+    let savedHtmlCode = "";
+    let savedCssCode = "";\n  padding: 20px;\n  background: #eaf4ff;\n}\nh1 { color: #1565c0; }";
 
     function selectCodingLanguage(language) {
         if (!["python", "html", "css"].includes(language)) language = "python";
@@ -739,8 +744,12 @@ print("Hello", name)
                 mode: "text/html", theme: document.body.classList.contains("night-mode") ? "material-darker" : "neo",
                 lineNumbers: true, indentUnit: 2, matchBrackets: true, viewportMargin: Infinity
             });
+            webEditor.on('focus', () => { lastFocusedEditor = webEditor; syncToolbar(); });
+            webEditor.on('mousedown', () => { lastFocusedEditor = webEditor; });
+            webEditor.on('keyup', () => { lastFocusedEditor = webEditor; });
         }
         if (webEditor) {
+            if (language !== 'python') lastFocusedEditor = webEditor;
             webEditor.setOption("mode", language === "html" ? "text/html" : "css");
             webEditor.setValue(language === "html" ? savedHtmlCode : savedCssCode);
             webEditor.setSize("100%", "auto");
@@ -841,6 +850,8 @@ print("Hello", name)
             });
             scriptEditor.setSize('100%', 'auto');
             scriptEditor.on('focus', () => { lastFocusedEditor = scriptEditor; syncToolbar(); });
+            scriptEditor.on('mousedown', () => { lastFocusedEditor = scriptEditor; });
+            scriptEditor.on('keyup', () => { lastFocusedEditor = scriptEditor; });
         }
         if (workspace === 'web') {
             if (!webEditor) {
@@ -848,6 +859,9 @@ print("Hello", name)
                     mode:'text/html', theme:document.body.classList.contains('night-mode') ? 'material-darker' : 'neo',
                     lineNumbers:true, indentUnit:2, matchBrackets:true, viewportMargin:Infinity
                 });
+                webEditor.on('focus', () => { lastFocusedEditor = webEditor; syncToolbar(); });
+                webEditor.on('mousedown', () => { lastFocusedEditor = webEditor; });
+                webEditor.on('keyup', () => { lastFocusedEditor = webEditor; });
             }
             selectCodingLanguage(codingLanguage === 'python' ? 'html' : codingLanguage);
         } else if (workspace === 'python') {
@@ -875,13 +889,18 @@ print("Hello", name)
     }
 
     function backToCodingEditor() {
-        document.getElementById("coding-output-page").style.display = "none";
+        const outputPage = document.getElementById("coding-output-page");
+        if (!outputPage || getComputedStyle(outputPage).display === "none") return;
+        outputPage.style.display = "none";
         document.getElementById("coding-output-page").classList.remove("web-output");
         if (codingLanguage === "html" && webEditor) savedHtmlCode = webEditor.getValue();
         if (codingLanguage === "css" && webEditor) savedCssCode = webEditor.getValue();
         document.body.classList.remove("terminal-open");
         document.getElementById("coding-page").style.display = "block";
+        if (codingLanguage === 'python' && scriptEditor) lastFocusedEditor = scriptEditor;
+        else if (webEditor) lastFocusedEditor = webEditor;
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
+        if (webEditor) setTimeout(() => webEditor.refresh(), 80);
         syncToolbar();
         window.scrollTo(0, 0);
     }

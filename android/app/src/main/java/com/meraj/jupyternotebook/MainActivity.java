@@ -3,6 +3,11 @@ package com.meraj.jupyternotebook;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
+import android.database.Cursor;
+import android.provider.DocumentsContract;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -36,6 +41,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> filePathCallback;
     private static final int FILE_CHOOSER_REQUEST = 1001;
     private static final int CREATE_DOCUMENT_REQUEST = 1002;
+    private static final int DATA_FOLDER_REQUEST = 1003;
     private byte[] pendingDownloadBytes;
     private String pendingSaveKey;
     private String pendingSaveMime;
@@ -97,6 +103,19 @@ public class MainActivity extends Activity {
                 });
             }
         }
+
+        @JavascriptInterface
+        public void chooseDataFolder() {
+            handler.post(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                    startActivityForResult(intent, DATA_FOLDER_REQUEST);
+                } catch (Exception e) {
+                    if (webView != null) webView.evaluateJavascript("alert('Cannot open folder picker')", null);
+                }
+            });
+        }
     }
 
     @Override
@@ -120,6 +139,9 @@ public class MainActivity extends Activity {
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setAllowFileAccess(true);
         webView.getSettings().setAllowContentAccess(true);
+        webView.getSettings().setSupportZoom(false);
+        webView.getSettings().setBuiltInZoomControls(false);
+        webView.getSettings().setDisplayZoomControls(false);
         // The UI is served by the app's local Flask server. Avoid stale WebView
         // resource caching when a newly built APK contains updated HTML/CSS/JS.
         webView.getSettings().setCacheMode(android.webkit.WebSettings.LOAD_NO_CACHE);
@@ -144,10 +166,9 @@ public class MainActivity extends Activity {
                     intent.setAction(Intent.ACTION_OPEN_DOCUMENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.setType("*/*");
-                    intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-                            "application/x-ipynb+json", "application/json", "text/plain",
-                            "application/octet-stream", "text/html", "text/css"
-                    });
+                    // Do not retain MIME filters created from the HTML input's accept list:
+                    // Android providers may otherwise hide .py or .ipynb despite type=*/*.
+                    intent.removeExtra(Intent.EXTRA_MIME_TYPES);
                     startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     return true;
                 } catch (Exception e) {
@@ -237,6 +258,24 @@ public class MainActivity extends Activity {
             }
             return;
         }
+        if (requestCode == DATA_FOLDER_REQUEST) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                Uri treeUri = data.getData();
+                try {
+                    int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    try { getContentResolver().takePersistableUriPermission(treeUri, flags); } catch (Exception ignored) { }
+                    File target = new File(getFilesDir(), "notebook_workspace");
+                    if (target.exists()) deleteTree(target);
+                    if (!target.mkdirs() && !target.isDirectory()) throw new java.io.IOException("Cannot create workspace folder");
+                    copyTreeContents(treeUri, DocumentsContract.getTreeDocumentId(treeUri), target);
+                    Python.getInstance().getModule("jupyter").callAttr("set_workspace_dir", target.getAbsolutePath());
+                    if (webView != null) webView.evaluateJavascript("alert('Data folder selected. CSV and other files were copied into the app workspace.')", null);
+                } catch (Exception e) {
+                    if (webView != null) webView.evaluateJavascript("alert('Could not import folder: " + jsSafe(e.getMessage()) + "')", null);
+                }
+            }
+            return;
+        }
         if (requestCode == FILE_CHOOSER_REQUEST) {
             if (filePathCallback != null) {
                 Uri[] results = null;
@@ -257,6 +296,45 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private String jsSafe(String value) {
+        if (value == null) return "unknown error";
+        return value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ").replace("\r", " ");
+    }
+
+    private void deleteTree(File file) {
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) for (File child : children) deleteTree(child);
+        }
+        file.delete();
+    }
+
+    private void copyTreeContents(Uri treeUri, String parentDocumentId, File destination) throws Exception {
+        Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId);
+        String[] columns = {DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE};
+        try (Cursor cursor = getContentResolver().query(childrenUri, columns, null, null, null)) {
+            if (cursor == null) throw new java.io.IOException("Folder provider did not return files");
+            while (cursor.moveToNext()) {
+                String id = cursor.getString(0);
+                String name = cursor.getString(1);
+                String mime = cursor.getString(2);
+                if (name == null || name.equals(".") || name.equals("..")) continue;
+                File output = new File(destination, name.replaceAll("[\\/:*?\"<>|]", "_"));
+                if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mime)) {
+                    if (!output.mkdirs() && !output.isDirectory()) continue;
+                    copyTreeContents(treeUri, id, output);
+                } else {
+                    Uri fileUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id);
+                    try (InputStream in = getContentResolver().openInputStream(fileUri); FileOutputStream out = new FileOutputStream(output)) {
+                        if (in == null) continue;
+                        byte[] buffer = new byte[8192]; int count;
+                        while ((count = in.read(buffer)) > 0) out.write(buffer, 0, count);
+                    }
+                }
+            }
+        }
     }
 
     @Override public void onBackPressed() {

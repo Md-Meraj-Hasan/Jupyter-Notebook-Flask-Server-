@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import io
+import os
+from pathlib import Path
 import contextlib
 import pandas as pd
 from waitress import serve
@@ -61,6 +63,21 @@ def _network_policy(code):
             socket.socket.connect = original_connect
 
 app = Flask(__name__)
+
+# The user may import a local data folder from Android's Storage Access Framework.
+# Relative reads such as pd.read_csv("housing.csv") then resolve in that folder.
+_workspace_dir = Path(__file__).resolve().parent
+_workspace_lock = threading.RLock()
+
+def set_workspace_dir(path):
+    global _workspace_dir
+    candidate = Path(str(path)).resolve()
+    if not candidate.exists() or not candidate.is_dir():
+        raise ValueError("Workspace folder does not exist")
+    with _workspace_lock:
+        _workspace_dir = candidate
+        os.chdir(str(candidate))
+    return str(candidate)
 
 cells_globals = {
     "pd": pd,

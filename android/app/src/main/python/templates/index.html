@@ -97,7 +97,7 @@
         .mode-switch:hover, .mode-switch:focus { background: transparent; border-color: transparent; box-shadow: none; outline: none; }
         .mode-switch:active { background: transparent; filter:none; }
         #coding-page { display:none; width:100%; min-height:calc(100vh - 48px); margin:0; padding:0 0 calc(24px + env(safe-area-inset-bottom)); box-sizing:border-box; overflow:visible; }
-        #top-run-btn { display:none; width:28px; height:26px; min-width:28px; box-sizing:border-box; align-items:center; justify-content:center; border:1px solid var(--border-color); border-radius:3px; padding:0; background:var(--cell-bg); color:var(--run-color); font-weight:700; font-size:13px; line-height:1; cursor:pointer; box-shadow:none; }
+        #top-run-btn { display:none; width:76px; height:30px; min-width:76px; box-sizing:border-box; align-items:center; justify-content:center; border:1px solid var(--border-color); border-radius:3px; padding:0 10px; background:var(--cell-bg); color:var(--run-color); font-weight:700; font-size:14px; line-height:1; cursor:pointer; box-shadow:none; }
         /* Output actions use the same quiet, compact, unhighlighted controls as the main toolbar. */
         .icon-btn { width:auto; height:26px; min-width:26px; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; padding:4px 7px !important; border:1px solid transparent !important; border-radius:0 !important; background:transparent !important; color:var(--menu-text) !important; font-size:13px !important; font-weight:400 !important; box-shadow:none !important; }
         .icon-btn.clear, .icon-btn.stop { color:var(--menu-text) !important; }
@@ -198,9 +198,9 @@
         /* v1.0.9: fix CodeMirror internal vertical scrolling for long source files */
         #script-editor .CodeMirror,
         #web-editor .CodeMirror {
-            height: calc(100dvh - 235px) !important;
+            height: calc(100dvh - 158px) !important;
             min-height: 220px !important;
-            max-height: calc(100dvh - 235px) !important;
+            max-height: calc(100dvh - 158px) !important;
             overflow: hidden !important;
             display: flex;
             flex-direction: column;
@@ -295,12 +295,12 @@
         <div class="dropdown-content">
             <div onclick="newNotebook()">📄 New</div>
             <div onclick="openCurrentFile()">📂 Open</div>
+            <div onclick="chooseNotebookDataFolder()">📁 Choose Data Folder (CSV)</div>
             <div onclick="saveCurrentFile(false)">💾 Save</div>
             <div onclick="saveCurrentFile(true)">📝 Save As</div>
         </div>
     </div>
     <div class="btn" style="margin-left:10px" onclick="toggleTheme()">🌙 Theme</div>
-    <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶</button>
     <div class="dropdown mode-dropdown">
       <button class="mode-switch" id="mode-switch" onclick="toggleModeMenu(event)" title="Choose workspace">📒 Notebook ▾</button>
       <div class="dropdown-content mode-menu" id="mode-menu">
@@ -309,7 +309,8 @@
         <div onclick="selectWorkspace('web')">🌐 HTML &amp; CSS</div>
       </div>
     </div>
-    <input type="file" id="file-input" accept=".ipynb,.json,.py,.html,.htm,.css,text/plain,text/html,application/json,application/x-ipynb+json" style="display:none" onchange="loadCurrentFile(event)">
+    <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶ Run</button>
+    <input type="file" id="file-input" accept=".ipynb,.json,.py,.html,.htm,.css,.csv,text/plain,text/html,application/json,application/x-ipynb+json" style="display:none" onchange="loadCurrentFile(event)">
 </div>
 
 <div class="container" id="notebook"></div>
@@ -618,8 +619,17 @@
         const input = document.getElementById('file-input');
         const workspace = currentWorkspace;
         input.dataset.openWorkspace = workspace;
+        input.accept = workspace === 'python' ? '.py,text/x-python,text/plain' : (workspace === 'web' ? '.html,.htm,.css,text/html,text/css,text/plain' : '.ipynb,.json,application/json,application/x-ipynb+json,text/plain');
         input.value = '';
         input.click();
+    }
+
+    function chooseNotebookDataFolder() {
+        if (window.AndroidDownloads && typeof window.AndroidDownloads.chooseDataFolder === 'function') {
+            window.AndroidDownloads.chooseDataFolder();
+        } else {
+            alert('Folder selection is available in the Android app.');
+        }
     }
 
     function downloadTextFile(filename, mime, text) {
@@ -727,11 +737,17 @@
                     if (Array.isArray(parsed) && parsed.every(c => typeof c === 'string')) {
                         cellsToLoad = parsed.map(source => ({source, language:'python'}));
                     } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.cells)) {
-                        cellsToLoad = parsed.cells.filter(c => c && c.cell_type === 'code').map(cell => ({
+                        // Accept standard Jupyter .ipynb cells as well as this app's JSON notebook.
+                        cellsToLoad = parsed.cells.filter(c => c && (!c.cell_type || c.cell_type === 'code')).map(cell => ({
                             source: Array.isArray(cell.source) ? cell.source.join('') : (typeof cell.source === 'string' ? cell.source : ''),
                             language: cell.metadata && ['python','html','css'].includes(cell.metadata.custom_language) ? cell.metadata.custom_language : 'python'
                         }));
-                    } else throw new Error('Unsupported file. Open .ipynb, .json, .py, .html or .css.');
+                    } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.worksheets)) {
+                        // Legacy notebook JSON shape: accept cell-like source entries when present.
+                        cellsToLoad = parsed.worksheets.flatMap(sheet => Array.isArray(sheet.cells) ? sheet.cells : []).map(cell => ({
+                            source: Array.isArray(cell.source) ? cell.source.join('') : (typeof cell.source === 'string' ? cell.source : ''), language: 'python'
+                        }));
+                    } else throw new Error('Unsupported JSON. Notebook JSON must contain a cells array.');
                     document.getElementById('notebook').innerHTML = '';
                     cellCount = 0; editors = {};
                     cellsToLoad.forEach(cell => addNewCell(cell.source, cell.language));

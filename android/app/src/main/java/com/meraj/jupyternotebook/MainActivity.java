@@ -47,6 +47,7 @@ public class MainActivity extends Activity {
     private String pendingSaveKey;
     private String pendingSaveMime;
     private boolean pendingSaveAs;
+    private boolean niceCodingSetupPromptLaunched = false;
 
     /** Native bridge for downloads, because Android WebView does not reliably honor
      *  HTMLAnchorElement.download for data/blob URLs. */
@@ -151,6 +152,29 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean syncWorkspaceFiles(String workspace) {
+            try {
+                String name = safeWorkspace(workspace);
+                File local = workspaceLocalDir(name);
+                if (!local.exists() && !local.mkdirs()) return false;
+                String folderText = getSharedPreferences("nicecoding_storage", MODE_PRIVATE)
+                        .getString("folder_" + name, null);
+                if (folderText != null) {
+                    Uri folder = Uri.parse(folderText);
+                    String treeText = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", null);
+                    if (treeText == null) throw new java.io.IOException("NiceCoding storage permission is missing. Run Setup Downloads/NiceCoding once.");
+                    Uri treeUri = Uri.parse(treeText);
+                    copyTreeContents(treeUri, DocumentsContract.getDocumentId(folder), local);
+                }
+                Python.getInstance().getModule("jupyter").callAttr("set_workspace_dir", local.getAbsolutePath());
+                return true;
+            } catch (Exception e) {
+                android.util.Log.e("NiceCodingStorage", "Workspace file sync failed", e);
+                return false;
+            }
+        }
+
+        @JavascriptInterface
         public void setActiveWorkspace(String workspace) {
             final String name = safeWorkspace(workspace);
             handler.post(() -> {
@@ -159,8 +183,10 @@ public class MainActivity extends Activity {
                     local.mkdirs();
                     String folderUri = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + name, null);
                     if (folderUri != null) {
-                        Uri uri = Uri.parse(folderUri);
-                        copyTreeContents(uri, DocumentsContract.getDocumentId(uri), local);
+                        Uri folder = Uri.parse(folderUri);
+                        String treeText = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", null);
+                        if (treeText == null) throw new java.io.IOException("NiceCoding storage permission is missing");
+                        copyTreeContents(Uri.parse(treeText), DocumentsContract.getDocumentId(folder), local);
                     }
                     Python.getInstance().getModule("jupyter").callAttr("set_workspace_dir", local.getAbsolutePath());
                 } catch (Exception e) {
@@ -275,7 +301,7 @@ public class MainActivity extends Activity {
             File local = workspaceLocalDir(ws);
             if (!local.exists()) local.mkdirs();
             Uri folder = Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + ws, ""));
-            copyTreeContents(folder, DocumentsContract.getDocumentId(folder), local);
+            copyTreeContents(treeUri, DocumentsContract.getDocumentId(folder), local);
         }
         Python.getInstance().getModule("jupyter").callAttr("set_workspace_dir", workspaceLocalDir("notebook").getAbsolutePath());
     }
@@ -352,6 +378,27 @@ public class MainActivity extends Activity {
                     pageLoaded = true;
                     status.setVisibility(View.GONE);
                     webView.setVisibility(View.VISIBLE);
+                    // First launch only: ask the user to grant persistent access to Downloads.
+                    // Once granted, NiceCoding/Notebook, Python and HTML_CSS are created automatically.
+                    if (!niceCodingSetupPromptLaunched && getSharedPreferences("nicecoding_storage", MODE_PRIVATE)
+                            .getString("tree_uri", null) == null) {
+                        niceCodingSetupPromptLaunched = true;
+                        handler.postDelayed(() -> {
+                            if (!isFinishing() && getSharedPreferences("nicecoding_storage", MODE_PRIVATE)
+                                    .getString("tree_uri", null) == null) {
+                                try {
+                                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                            | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                                    intent.putExtra("android.content.extra.SHOW_ADVANCED", true);
+                                    startActivityForResult(intent, NICECODING_TREE_REQUEST);
+                                } catch (Exception e) {
+                                    notifyJs(false, "Please allow Downloads folder access from File > Setup Downloads/NiceCoding.");
+                                }
+                            }
+                        }, 650);
+                    }
                 }
             }
         });
@@ -427,7 +474,7 @@ public class MainActivity extends Activity {
                     int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                     try { getContentResolver().takePersistableUriPermission(treeUri, flags); } catch (Exception ignored) { }
                     configureNiceCodingTree(treeUri);
-                    notifyJs(true, "NiceCoding folders created. Use Downloads/NiceCoding/Notebook, Python and HTML_CSS.");
+                    notifyJs(true, "NiceCoding folders created. Keep notebooks and their CSV files together in Downloads/NiceCoding/Notebook.");
                 } catch (Exception e) {
                     notifyJs(false, "Could not set up NiceCoding folders: " + e.getMessage());
                 }

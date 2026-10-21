@@ -207,37 +207,43 @@ def run_code():
         return jsonify({"output":"","html":"","final_val":""})
 
     try:
-        with _network_policy(code), contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
-            tree = ast.parse(code)
-            last_node = tree.body[-1] if tree.body else None
+        # The working directory is process-global in Python. Re-apply the selected
+        # notebook workspace immediately before each cell and hold the workspace
+        # lock during execution so relative paths such as pd.read_csv("data.csv")
+        # resolve against the synchronized NiceCoding/Notebook directory.
+        with _workspace_lock:
+            os.chdir(str(_workspace_dir))
+            with _network_policy(code), contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
+                tree = ast.parse(code)
+                last_node = tree.body[-1] if tree.body else None
 
-            if isinstance(last_node, ast.Expr):
-                if len(tree.body) > 1:
-                    exec(compile(ast.Module(body=tree.body[:-1], type_ignores=[]), "<ast>", "exec"), cells_globals)
+                if isinstance(last_node, ast.Expr):
+                    if len(tree.body) > 1:
+                        exec(compile(ast.Module(body=tree.body[:-1], type_ignores=[]), "<ast>", "exec"), cells_globals)
                 
-                result = eval(compile(ast.Expression(body=last_node.value), "<ast>", "eval"), cells_globals)
+                    result = eval(compile(ast.Expression(body=last_node.value), "<ast>", "eval"), cells_globals)
 
-                if isinstance(result, (pd.DataFrame, pd.Series)):
-                    df = result.to_frame() if isinstance(result, pd.Series) else result
-                    # FIXED: Set index=True to show column names for Series/Index labels
-                    html_output = df.to_html(
-                        classes="dataframe",
-                        border=0,
-                        justify="left",
-                        index=True 
-                    )
-                elif result is not None:
-                    final_val = str(result)
-            else:
-                exec(code, cells_globals)
+                    if isinstance(result, (pd.DataFrame, pd.Series)):
+                        df = result.to_frame() if isinstance(result, pd.Series) else result
+                        # FIXED: Set index=True to show column names for Series/Index labels
+                        html_output = df.to_html(
+                            classes="dataframe",
+                            border=0,
+                            justify="left",
+                            index=True 
+                        )
+                    elif result is not None:
+                        final_val = str(result)
+                else:
+                    exec(code, cells_globals)
 
-        if plt.get_fignums():
-            img = io.BytesIO()
-            plt.savefig(img, format="png", bbox_inches="tight",dpi=400)
-            img.seek(0)
-            img_base64 = base64.b64encode(img.getvalue()).decode()
-            html_output += f'<img src="data:image/png;base64,{img_base64}" style="max-width:100%;">'
-            plt.close("all")
+            if plt.get_fignums():
+                img = io.BytesIO()
+                plt.savefig(img, format="png", bbox_inches="tight",dpi=400)
+                img.seek(0)
+                img_base64 = base64.b64encode(img.getvalue()).decode()
+                html_output += f'<img src="data:image/png;base64,{img_base64}" style="max-width:100%;">'
+                plt.close("all")
 
         output = output_capture.getvalue()
     except Exception as e:

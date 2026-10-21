@@ -74,3 +74,7 @@ Notebook cells now have a language selector: Python, HTML, or CSS. Run on an HTM
 
 ## NiceCoding shared storage (v1.3.8)
 Open File → Setup Downloads/NiceCoding and choose the **Downloads** folder in Android system picker. The app creates `NiceCoding/Notebook`, `NiceCoding/Python`, and `NiceCoding/HTML_CSS` inside it. The app uses scoped Storage Access Framework access; it does not request broad storage permission. Notebook relative data files should be kept in `NiceCoding/Notebook`.
+
+
+## NiceCoding first-run storage
+On the first launch, Android opens its system folder picker so the user can grant persistent access to the Downloads folder. Select **Downloads** (not a child folder); the app creates `NiceCoding/Notebook`, `NiceCoding/Python`, and `NiceCoding/HTML_CSS` automatically. The persisted Storage Access Framework grant is reused on later launches. Notebook code execution refreshes files from `NiceCoding/Notebook` into the app's Python working directory before running, so relative paths such as `pd.read_csv("housing.csv")` work when the CSV is in that folder. Android requires this one-time system folder selection; an app cannot silently grant itself broad Downloads access.

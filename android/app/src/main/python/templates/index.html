@@ -541,6 +541,14 @@
 
         outputDiv.textContent = "Executing...";
         try {
+            // Pull newly added CSV/data files from Downloads/NiceCoding/Notebook before execution.
+            if (window.AndroidDownloads && typeof window.AndroidDownloads.syncWorkspaceFiles === "function") {
+                const synced = window.AndroidDownloads.syncWorkspaceFiles("notebook");
+                if (synced === false) {
+                    outputDiv.textContent = "Could not sync NiceCoding/Notebook files. Open File → Setup Downloads/NiceCoding and allow Downloads access, then try again.";
+                    return;
+                }
+            }
             const response = await fetch('/run', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ code: code })
@@ -580,7 +588,7 @@
             const dataUrl = canvas.toDataURL("image/png");
             const base64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
             if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
-                window.AndroidDownloads.saveBase64Image(`cell-${id}-analysis.png`, "image/png", base64);
+                window.AndroidDownloads.saveBase64File(`cell-${id}-analysis.png`, "image/png", base64, false, `image:${id}`);
             } else {
                 const link = document.createElement("a");
                 link.download = `cell-${id}-analysis.png`;

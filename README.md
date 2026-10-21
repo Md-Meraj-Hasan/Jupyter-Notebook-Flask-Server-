@@ -63,3 +63,10 @@ Notebook cells now have a language selector: Python, HTML, or CSS. Run on an HTM
 - During a Python run, outbound socket connections are blocked by default unless the code explicitly references a recognized network API such as `requests`, `socket`, `urllib`, `httpx`, or `aiohttp`.
 - Loopback connections (`localhost`, `127.0.0.1`, `::1`) remain available for the app's local server.
 - This is a convenience guard, not a security sandbox. Python code can bypass it, and libraries not recognized by the detector may need to be added to the network API list. Only run code you trust.
+
+
+## v1.2.5 — Python Run and Output Toolbar Fix
+- Python workspace hides HTML/CSS tabs and explicitly returns to Python editor mode.
+- Run routing keeps HTML/CSS preview separate from Python execution.
+- Output screen uses compact text labels (Back, Clear, Stop).
+- Keyboard symbol toolbar is hidden while output/preview is open.

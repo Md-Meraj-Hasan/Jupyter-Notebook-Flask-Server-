@@ -82,38 +82,48 @@
         }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg-body); color: var(--text-main); transition: 0.2s; min-height: 100vh; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         
-        .menu-bar { background: var(--toolbar-bg); padding: 5px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .menu-bar { background: var(--toolbar-bg); padding: 3px 8px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; position: sticky; top: 0; z-index: 1000; }
         .dropdown { position: relative; }
         .menu-item { cursor: pointer; font-size: 14px; padding: 8px 15px; display: flex; align-items: center; gap: 5px; color: var(--menu-text); }
+        .menu-bar > .btn { margin-left: 4px !important; padding: 4px 6px !important; font-size: 12px !important; line-height: 1.2; border-radius: 3px !important; box-shadow: none !important; }
+        .menu-bar .menu-item { font-size: 12px; padding: 5px 7px; gap: 3px; }
         .dropdown-content { display: none; position: absolute; background: var(--toolbar-bg); min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid var(--border-color); top: 100%; left: 0; z-index: 2000; }
         .dropdown-content div { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); font-size: 13px; color: var(--menu-text); }
         .dropdown:hover .dropdown-content { display: block; }
         .mode-dropdown .mode-menu { left:auto; right:0; min-width:165px; }
         .mode-dropdown .mode-menu div { white-space:nowrap; }
 
-        .mode-switch { margin-left: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--cell-bg); color: var(--menu-text); padding: 7px 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .mode-switch { margin-left: auto; border: 1px solid transparent; border-radius: 0; background: transparent; color: var(--menu-text); padding: 5px 7px; min-height: 0; box-sizing: border-box; font-size: 12px; line-height: 1.2; font-weight: 400; cursor: pointer; white-space: nowrap; box-shadow: none; }
+        .mode-switch:hover, .mode-switch:focus { background: transparent; border-color: transparent; box-shadow: none; outline: none; }
+        .mode-switch:active { background: transparent; filter:none; }
         #coding-page { display:none; width:100%; min-height:calc(100vh - 48px); margin:0; padding:0 0 calc(24px + env(safe-area-inset-bottom)); box-sizing:border-box; overflow:visible; }
-        #top-run-btn { display:none; border:1px solid var(--border-color); border-radius:8px; padding:7px 11px; background:var(--cell-bg); color:var(--run-color); font-weight:800; font-size:17px; cursor:pointer; }
-        .icon-btn { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; padding:0 !important; border:1px solid var(--terminal-border) !important; border-radius:9px !important; background:var(--terminal-toolbar) !important; color:var(--terminal-text) !important; font-size:18px !important; }
-        .icon-btn.clear { color:var(--terminal-accent) !important; }
-        .icon-btn.stop { color:#e05252 !important; }
+        #top-run-btn { display:none; width:28px; height:26px; min-width:28px; box-sizing:border-box; align-items:center; justify-content:center; border:1px solid var(--border-color); border-radius:3px; padding:0; background:var(--cell-bg); color:var(--run-color); font-weight:700; font-size:13px; line-height:1; cursor:pointer; box-shadow:none; }
+        /* Output actions use the same quiet, compact, unhighlighted controls as the main toolbar. */
+        .icon-btn { width:auto; height:26px; min-width:26px; display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; padding:4px 7px !important; border:1px solid transparent !important; border-radius:0 !important; background:transparent !important; color:var(--menu-text) !important; font-size:13px !important; font-weight:400 !important; box-shadow:none !important; }
+        .icon-btn.clear, .icon-btn.stop { color:var(--menu-text) !important; }
         #script-editor, #web-editor { padding:0; }
         #script-editor .CodeMirror, #web-editor .CodeMirror { min-height:calc(100vh - 205px); height:auto !important; border:0; font-size:15px; overflow:visible; }
         #script-editor .CodeMirror-scroll, #web-editor .CodeMirror-scroll { overflow-x:auto !important; overflow-y:hidden !important; min-height:calc(100vh - 205px); }
         #notebook { overflow:visible; min-height:calc(100vh - 60px); }
         .output-container { max-height:none; overflow-x:auto; overflow-y:visible; }
         .web-preview-frame { overflow:auto; -webkit-overflow-scrolling:touch; }
-        .coding-language-tabs { display:flex; gap:8px; padding:10px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:5; }
-        .coding-language-tab { flex:1; padding:10px 6px; border:1px solid var(--border-color); border-radius:9px; background:var(--cell-bg); color:var(--text-main); font-weight:700; font-size:14px; }
-        .coding-language-tab.active { background:#1976d2; border-color:#1976d2; color:#fff; }
+        /* Compact workspace tabs, matching the original notebook toolbar controls. */
+        .coding-language-tabs { display:flex; align-items:center; gap:4px; padding:5px 10px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:5; }
+        .coding-language-tab { flex:0 0 auto; min-width:0; min-height:0; box-sizing:border-box; padding:5px 8px; border:1px solid transparent; border-radius:0; background:transparent; color:var(--menu-text); font:400 12px/1.2 'Segoe UI', sans-serif; box-shadow:none; cursor:pointer; }
+        .coding-language-tab.active { background:transparent; border-color:transparent; color:var(--menu-text); font-weight:400; }
+        .night-mode .coding-language-tab.active { background:transparent; border-color:transparent; color:var(--menu-text); }
+        .coding-language-tab:hover, .coding-language-tab:focus { background:transparent; border-color:transparent; box-shadow:none; outline:none; }
+        .coding-language-tab:focus-visible, .icon-btn:focus-visible { outline:2px solid #1976d2; outline-offset:1px; }
         #coding-output-page.web-output #console-terminal { display:none; }
-        #coding-web-preview { display:none; position:absolute; top:48px; left:0; right:0; bottom:0; width:100%; height:calc(100% - 48px); border:0; background:#fff; overflow:auto; -webkit-overflow-scrolling:touch; }
+        #coding-web-preview { display:none; position:absolute; top:36px; left:0; right:0; bottom:0; width:100%; height:calc(100% - 36px); border:0; background:#fff; overflow:auto; -webkit-overflow-scrolling:touch; }
         #coding-output-page.web-output #coding-web-preview { display:block; }
         #coding-output-page { display:none; position:fixed; inset:0; z-index:20000; background:var(--terminal-bg); color:var(--terminal-text); overflow:hidden; box-sizing:border-box; height:100dvh; min-height:100%; }
-        .output-page-toolbar { display:flex; align-items:center; gap:8px; padding:6px 10px; background:var(--terminal-toolbar); border-bottom:1px solid var(--terminal-border); position:absolute; top:0; left:0; right:0; height:48px; box-sizing:border-box; z-index:2; }
+        .output-page-toolbar { display:flex; align-items:center; gap:4px; padding:3px 8px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); position:absolute; top:0; left:0; right:0; height:36px; box-sizing:border-box; z-index:2; }
         .output-page-toolbar button { cursor:pointer; }
-        .back-output-btn { width:36px; height:36px; border-radius:9px !important; font-size:21px !important; }
-        #console-terminal { position:absolute; top:48px; left:0; right:0; bottom:0; padding:12px 10px calc(12px + env(safe-area-inset-bottom)); box-sizing:border-box; overflow:auto; background:var(--terminal-bg); color:var(--terminal-text); -webkit-overflow-scrolling:touch; }
+        .output-page-toolbar button:active, .coding-language-tab:active { transform:none; filter:none; }
+        .output-page-toolbar button, .coding-language-tab { -webkit-tap-highlight-color:transparent; }
+        .back-output-btn { width:auto; height:26px; min-width:26px; border-radius:0 !important; font-size:14px !important; }
+        #console-terminal { position:absolute; top:36px; left:0; right:0; bottom:0; padding:12px 10px calc(12px + env(safe-area-inset-bottom)); box-sizing:border-box; overflow:auto; background:var(--terminal-bg); color:var(--terminal-text); -webkit-overflow-scrolling:touch; }
         #console-output { display:block; white-space:pre-wrap; overflow-wrap:anywhere; min-height:0; margin:0; padding:0; background:transparent; color:var(--terminal-text); font:16px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; border:0; border-radius:0; overflow:visible; }
         #console-input-row { display:none; align-items:baseline; gap:0; margin:0; padding:0; border:0; background:transparent; color:var(--terminal-text); font:16px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
         #console-prompt { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--terminal-text); }
@@ -121,6 +131,12 @@
         #console-input::placeholder { color:transparent; }
         #console-input-row:focus-within { outline:none; }
         body.terminal-open { overflow:hidden; }
+        body.terminal-open #fixed-toolbar { display:none !important; }
+        #coding-output-page .output-page-toolbar { gap:6px; padding:3px 8px; height:32px; }
+        #coding-output-page .output-page-toolbar .icon-btn { width:auto; min-width:0; height:24px; padding:2px 6px !important; font-size:12px !important; }
+        #coding-output-page .output-page-toolbar .back-output-btn { width:auto; min-width:0; height:24px; padding:2px 8px !important; font-size:12px !important; }
+        #coding-output-page #console-terminal { top:32px; }
+        #coding-output-page #coding-web-preview { top:32px; height:calc(100% - 32px); }
         .container { width: 95%; max-width: 1100px; margin: 20px auto; padding-bottom: 300px; display: flex; flex-direction: column; }
         .cell { margin-bottom: 15px; border: 1px solid var(--border-color); background: var(--cell-bg); overflow: hidden; position: relative; }
         .toolbar { display: flex; gap: 10px; padding: 5px 10px; background: var(--toolbar-bg); border-bottom: 1px solid var(--border-color); align-items: center; }
@@ -283,10 +299,10 @@ print("Hello", name)
 
 <div id="coding-output-page" aria-label="Python output page">
   <div class="output-page-toolbar">
-    <button class="back-output-btn icon-btn" onclick="backToCodingEditor()" title="Back to code" aria-label="Back to code">←</button>
+    <button class="back-output-btn icon-btn" onclick="backToCodingEditor()" title="Back to code" aria-label="Back to code">Back</button>
     <span style="margin-left:auto"></span>
-    <button class="icon-btn clear" onclick="clearConsole()" title="Clear output" aria-label="Clear output">🧹</button>
-    <button class="icon-btn stop" onclick="cancelScript()" title="Stop Python" aria-label="Stop Python">■</button>
+    <button class="icon-btn clear" onclick="clearConsole()" title="Clear output" aria-label="Clear output">Clear</button>
+    <button class="icon-btn stop" onclick="cancelScript()" title="Stop Python" aria-label="Stop Python">Stop</button>
   </div>
   <iframe id="coding-web-preview" title="HTML and CSS output" sandbox="allow-forms allow-modals allow-popups"></iframe>
   <div id="console-terminal" role="log" aria-live="polite">
@@ -347,6 +363,10 @@ print("Hello", name)
         if (window.visualViewport) {
             const viewport = window.visualViewport;
             const isKeyboardOpen = viewport.height < initialHeight * 0.9;
+            if (document.body.classList.contains('terminal-open')) {
+                toolbar.style.display = 'none';
+                return;
+            }
             if (isKeyboardOpen) {
                 toolbar.style.display = 'flex';
                 toolbar.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight) + 'px';
@@ -738,7 +758,47 @@ print("Hello", name)
         document.getElementById("console-input-row").style.display = "none";
         const html = codingLanguage === "html" ? savedHtmlCode : savedHtmlCode;
         const css = savedCssCode;
-        const style = `<style>html{box-sizing:border-box;min-height:100%;overflow-x:hidden;overflow-y:auto}body{box-sizing:border-box;min-height:100%;margin:8px;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere;-webkit-overflow-scrolling:touch}*{max-width:100%;box-sizing:border-box;} ${css} </style>`;
+        const style = `<style>html{box-sizing:border-box;min-height:100%;overflow-x:hidden;overflow-y:auto}body{box-sizing:border-box;min-height:100%;margin:8px;overflow-x:hidden;overflow-y:auto;overflow-wrap:anywhere;-webkit-overflow-scrolling:touch}*{max-width:100%;box-sizing:border-box;} ${css} 
+        /* v1.2.6: compact HTML/CSS selector like the notebook's native controls. */
+        .coding-language-tabs { gap:4px !important; padding:2px 8px !important; min-height:0 !important; height:30px !important; box-sizing:border-box !important; align-items:center !important; }
+        .coding-language-tabs .coding-language-tab { flex:0 0 auto !important; width:auto !important; min-width:0 !important; min-height:0 !important; height:24px !important; padding:2px 9px !important; margin:0 !important; border:1px solid var(--border-color) !important; border-radius:3px !important; background:transparent !important; color:var(--menu-text) !important; font:400 11px/1.1 'Segoe UI',sans-serif !important; font-weight:400 !important; box-shadow:none !important; }
+        .coding-language-tabs .coding-language-tab.active { background:var(--toolbar-bg) !important; color:var(--menu-text) !important; border-color:var(--border-color) !important; font-weight:400 !important; }
+        .coding-language-tabs .coding-language-tab:focus, .coding-language-tabs .coding-language-tab:hover { outline:none !important; box-shadow:none !important; filter:none !important; }
+        #script-editor .CodeMirror, #web-editor .CodeMirror { min-height:calc(100dvh - 155px) !important; }
+        #script-editor .CodeMirror-scroll, #web-editor .CodeMirror-scroll { min-height:calc(100dvh - 155px) !important; }
+        /* Keep the Android/phone keyboard available for input() in Python output. */
+        #coding-output-page #console-input { display:inline-block !important; pointer-events:auto !important; user-select:text !important; -webkit-user-select:text !important; }
+        #coding-output-page #console-input-row { scroll-margin-bottom:40vh; }
+        #coding-output-page #console-terminal { padding-bottom:calc(16px + env(safe-area-inset-bottom) + 35vh); }
+
+        /* v1.2.7: keep CodeMirror line numbers/gutter pinned while source scrolls horizontally. */
+        #script-editor .CodeMirror-gutters,
+        #web-editor .CodeMirror-gutters {
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 8 !important;
+            align-self: flex-start !important;
+            flex-shrink: 0 !important;
+            background: var(--gutter-bg, #f7f7f7) !important;
+        }
+        #script-editor .CodeMirror-linenumber,
+        #web-editor .CodeMirror-linenumber {
+            position: relative !important;
+            white-space: nowrap !important;
+            text-align: right !important;
+            padding: 0 4px 0 2px !important;
+        }
+        #script-editor .CodeMirror-scroll,
+        #web-editor .CodeMirror-scroll {
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            scrollbar-gutter: stable;
+        }
+        .night-mode #script-editor .CodeMirror-gutters,
+        .night-mode #web-editor .CodeMirror-gutters {
+            background: #292b2f !important;
+        }
+</style>`;
         let rendered;
         if (/<html[\s>]/i.test(html)) {
             rendered = /<head[\s>]/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1>${style}`) : html.replace(/<html([^>]*)>/i, `<html$1><head>${style}</head>`);
@@ -768,6 +828,8 @@ print("Hello", name)
         document.getElementById('notebook').style.display = workspace === 'notebook' ? 'flex' : 'none';
         document.getElementById('fab-btn').style.display = workspace === 'notebook' ? 'block' : 'none';
         document.getElementById('coding-page').style.display = workspace === 'notebook' ? 'none' : 'block';
+        const languageTabs = document.querySelector('.coding-language-tabs');
+        if (languageTabs) languageTabs.style.display = workspace === 'web' ? 'flex' : 'none';
         document.getElementById('coding-output-page').style.display = 'none';
         document.body.classList.remove('terminal-open');
         document.getElementById('mode-switch').textContent = workspace === 'notebook' ? '📒 Notebook ▾' : (workspace === 'python' ? '🐍 Python ▾' : '🌐 HTML & CSS ▾');
@@ -789,6 +851,7 @@ print("Hello", name)
             }
             selectCodingLanguage(codingLanguage === 'python' ? 'html' : codingLanguage);
         } else if (workspace === 'python') {
+            codingLanguage = 'python';
             document.getElementById('script-editor').style.display = 'block';
             document.getElementById('web-editor').style.display = 'none';
         }
@@ -819,6 +882,7 @@ print("Hello", name)
         document.body.classList.remove("terminal-open");
         document.getElementById("coding-page").style.display = "block";
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
+        syncToolbar();
         window.scrollTo(0, 0);
     }
 
@@ -833,7 +897,9 @@ print("Hello", name)
             showWebOutputPage();
             return;
         }
+        if (currentWorkspace !== 'python') selectWorkspace('python');
         showCodingOutputPage();
+        syncToolbar();
         const output = document.getElementById("console-output");
         const inputRow = document.getElementById("console-input-row");
         inputRow.style.display = "none";
@@ -866,7 +932,10 @@ print("Hello", name)
                 inputRow.style.display = "flex";
                 document.getElementById("console-prompt").textContent = data.input_prompt || "";
                 const field = document.getElementById("console-input");
-                if (document.activeElement !== field) field.focus();
+                if (document.activeElement !== field) {
+                    field.removeAttribute("readonly");
+                    setTimeout(() => { try { field.focus(); } catch (_) {} }, 80);
+                }
                 const terminal = document.getElementById("console-terminal");
                 terminal.scrollTop = terminal.scrollHeight;
             } else if (!data.running) inputRow.style.display = "none";

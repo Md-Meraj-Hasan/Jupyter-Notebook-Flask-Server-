@@ -296,6 +296,14 @@
         /* Keep the fixed menu visible while notebook cells scroll. */
         body:not(.terminal-open) #notebook { scroll-margin-top:48px; }
 
+        /* When Android's keyboard is open, reserve about three editor lines
+           so the current Python/HTML/CSS text can scroll above the toolbar. */
+        body.keyboard-open #script-editor .CodeMirror-scroll,
+        body.keyboard-open #web-editor .CodeMirror-scroll {
+            padding-bottom: 60px !important;
+            scroll-padding-bottom: 60px !important;
+        }
+
 </style>
 </head>
 <body>
@@ -385,6 +393,7 @@
     let editors = {};
     let lastFocusedEditor = null;
     const initialHeight = window.innerHeight;
+    let keyboardWasOpen = false;
     let currentMode = "notebook";
     let scriptEditor = null;
     let activeJobId = null;
@@ -401,6 +410,7 @@
         if (window.visualViewport) {
             const viewport = window.visualViewport;
             const isKeyboardOpen = viewport.height < initialHeight * 0.9;
+            document.body.classList.toggle('keyboard-open', isKeyboardOpen);
             // Keep the original toolbar behavior in Notebook/Python/HTML/CSS.
             // The only added rule is to hide it while the dedicated output page is visible.
             const outputPage = document.getElementById('coding-output-page');
@@ -413,10 +423,19 @@
                 toolbar.style.display = 'flex';
                 toolbar.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight) + 'px';
                 fab.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight - 70) + 'px';
+                // On keyboard opening only, move the active cursor about three
+                // lines above the toolbar; don't force-scroll on every viewport event.
+                if (!keyboardWasOpen && lastFocusedEditor && typeof lastFocusedEditor.getCursor === 'function') {
+                    const editor = lastFocusedEditor;
+                    setTimeout(() => {
+                        try { editor.scrollIntoView(editor.getCursor(), 60); } catch (_) {}
+                    }, 100);
+                }
             } else {
                 toolbar.style.display = 'none';
                 fab.style.top = 'auto'; fab.style.bottom = '30px';
             }
+            keyboardWasOpen = isKeyboardOpen;
         }
     };
 

@@ -78,3 +78,10 @@ Open File → Setup Downloads/NiceCoding and choose the **Downloads** folder in 
 
 ## NiceCoding first-run storage
 On the first launch, Android opens its system folder picker so the user can grant persistent access to the Downloads folder. Select **Downloads** (not a child folder); the app creates `NiceCoding/Notebook`, `NiceCoding/Python`, and `NiceCoding/HTML_CSS` automatically. The persisted Storage Access Framework grant is reused on later launches. Notebook code execution refreshes files from `NiceCoding/Notebook` into the app's Python working directory before running, so relative paths such as `pd.read_csv("housing.csv")` work when the CSV is in that folder. Android requires this one-time system folder selection; an app cannot silently grant itself broad Downloads access.
+
+
+## v1.4.3 — ML library and NumPy pickle compatibility
+- Added `mlxtend==0.23.4` to the Chaquopy Python package list for the Android build.
+- Added a startup compatibility alias for `numpy._core` pickle paths when loading joblib/pickle artifacts created under NumPy 2.x while this app uses NumPy 1.23.x.
+- The `joblib` warning about `sem_open` means joblib uses serial execution on Android; it is a warning, not the cause of `ModuleNotFoundError`.
+- This source update has not been validated by a GitHub Actions APK build or on-device model loading.

@@ -4,6 +4,28 @@ import os
 from pathlib import Path
 import contextlib
 import pandas as pd
+
+# Compatibility for joblib/pickle files created with NumPy 2.x.
+# This app pins NumPy 1.23.x for compatibility with the Chaquopy/Pandas stack,
+# where the internal package is named numpy.core rather than numpy._core.
+# Alias the old/new module paths before user code calls joblib.load().
+import sys as _sys
+import importlib as _importlib
+import numpy as _np
+if not hasattr(_np, "_core"):
+    _np._core = _np.core
+    _sys.modules.setdefault("numpy._core", _np.core)
+    # Pickles commonly refer to these NumPy 2.x module paths.
+    for _submodule in (
+        "multiarray", "numeric", "_multiarray_umath", "overrides",
+        "umath", "numerictypes", "_dtype", "_type_aliases",
+    ):
+        try:
+            _legacy_module = _importlib.import_module("numpy.core." + _submodule)
+            _sys.modules.setdefault("numpy._core." + _submodule, _legacy_module)
+        except Exception:
+            # Not every internal module exists on every NumPy build.
+            pass
 from waitress import serve
 import ast
 import matplotlib

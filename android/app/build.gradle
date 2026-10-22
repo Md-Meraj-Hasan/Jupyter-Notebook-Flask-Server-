@@ -79,6 +79,18 @@ chaquopy {
             install("fastapi")
             install("uvicorn")
             install("beautifulsoup4")
+
+            // Cybersecurity: defensive analysis, DNS/HTTP diagnostics, and token inspection
+            install("cryptography")
+            install("pyOpenSSL")
+            install("dnspython")
+            install("httpx")
+            install("PyJWT")
+            install("chardet")
+            install("defusedxml")
+            install("validators")
+            install("filetype")
+
             install("python-dateutil")
             install("pytz")
             install("packaging")

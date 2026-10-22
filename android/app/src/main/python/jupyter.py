@@ -117,6 +117,14 @@ _code_jobs_lock = threading.Lock()
 _code_globals = {"pd": pd, "plt": plt, "sns": sns, "__name__": "__main__"}
 
 class _JobOutput:
+    """Thread-safe output stream compatible with print() and server loggers.
+
+    Uvicorn's default logging formatter checks stream.isatty(). The coding
+    console is a captured stream, not a terminal, so report False explicitly.
+    """
+    encoding = "utf-8"
+    errors = "replace"
+
     def __init__(self, job): self.job = job
     def write(self, value):
         if value:
@@ -125,6 +133,8 @@ class _JobOutput:
                 self.job["condition"].notify_all()
         return len(value) if value else 0
     def flush(self): pass
+    def isatty(self): return False
+    def writable(self): return True
 
 class _JobInput:
     def __init__(self, job): self.job = job

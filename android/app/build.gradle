@@ -41,6 +41,9 @@ chaquopy {
         // GitHub Actions setup-python places the matching Python 3.10 executable named "python" on PATH.
         buildPython("python")
         pip {
+            // Increase pip network timeouts/retries for slower Chaquopy wheel downloads in CI.
+            options("--timeout", "120", "--retries", "10")
+
             // Web notebook backend
             install("flask")
             install("waitress")

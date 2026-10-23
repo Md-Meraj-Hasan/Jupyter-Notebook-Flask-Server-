@@ -474,7 +474,7 @@ public class MainActivity extends Activity {
                     int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                     try { getContentResolver().takePersistableUriPermission(treeUri, flags); } catch (Exception ignored) { }
                     configureNiceCodingTree(treeUri);
-                    notifyJs(true, "NiceCoding folders created. Keep notebooks and their CSV files together in Downloads/NiceCoding/Notebook.");
+                    notifyJs(true, "Storage ready. Existing NiceCoding folders were reused; missing folders were created. Choose Downloads in the Android folder picker, not the OPPO A55 storage root.");
                 } catch (Exception e) {
                     notifyJs(false, "Could not set up NiceCoding folders: " + e.getMessage());
                 }

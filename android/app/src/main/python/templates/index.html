@@ -296,30 +296,7 @@
         /* Keep the fixed menu visible while notebook cells scroll. */
         body:not(.terminal-open) #notebook { scroll-margin-top:48px; }
 
-
-
-        /* Targeted keyboard/editor height fix: keep the coding area above the extra toolbar. */
-        :root { --nicecoding-visible-height: 100dvh; --nicecoding-keyboard-toolbar-height: 0px; }
-        #coding-page { height: calc(var(--nicecoding-visible-height, 100dvh) - 48px) !important; min-height: 0 !important; box-sizing: border-box !important; }
-        #script-editor, #web-editor { min-height: 0 !important; height: auto !important; }
-        #script-editor .CodeMirror,
-        #web-editor .CodeMirror {
-            height: calc(var(--nicecoding-visible-height, 100dvh) - 84px - var(--nicecoding-keyboard-toolbar-height, 0px)) !important;
-            min-height: 80px !important;
-            max-height: none !important;
-            overflow: hidden !important;
-        }
-        #script-editor .CodeMirror-scroll,
-        #web-editor .CodeMirror-scroll {
-            height: 100% !important;
-            max-height: none !important;
-            min-height: 0 !important;
-            overflow-x: auto !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch;
-        }
-
-    </style>
+</style>
 </head>
 <body>
 
@@ -447,35 +424,6 @@
         window.visualViewport.addEventListener('resize', syncToolbar);
         window.visualViewport.addEventListener('scroll', syncToolbar);
     }
-
-    // Keep the editor's bottom edge directly above the extra keyboard toolbar.
-    // This only adjusts the Python/HTML/CSS editor viewport; Notebook logic is untouched.
-    function syncEditorViewportHeight() {
-        const viewport = window.visualViewport;
-        const visibleHeight = viewport ? viewport.height : window.innerHeight;
-        const toolbar = document.getElementById('fixed-toolbar');
-        const outputPage = document.getElementById('coding-output-page');
-        const outputVisible = outputPage && getComputedStyle(outputPage).display !== 'none';
-        const keyboardOpen = !!(viewport && viewport.height < initialHeight * 0.9);
-        let toolbarHeight = 0;
-        if (keyboardOpen && toolbar && !document.body.classList.contains('terminal-open') && !outputVisible) {
-            // syncToolbar controls the toolbar's visibility and screen position.
-            toolbarHeight = toolbar.offsetHeight || 0;
-        }
-        document.documentElement.style.setProperty('--nicecoding-visible-height', Math.max(visibleHeight, 120) + 'px');
-        document.documentElement.style.setProperty('--nicecoding-keyboard-toolbar-height', toolbarHeight + 'px');
-        if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 30);
-        if (webEditor) setTimeout(() => webEditor.refresh(), 30);
-    }
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', syncEditorViewportHeight);
-        window.visualViewport.addEventListener('scroll', syncEditorViewportHeight);
-    }
-    window.addEventListener('resize', syncEditorViewportHeight);
-    document.addEventListener('focusin', () => setTimeout(syncEditorViewportHeight, 80));
-    document.addEventListener('focusout', () => setTimeout(syncEditorViewportHeight, 180));
-    setTimeout(syncEditorViewportHeight, 100);
-
 
     function addNewCell(content = "", language = "python") {
         cellCount++;

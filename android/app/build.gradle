@@ -1,3 +1,4 @@
+
 plugins {
     id 'com.android.application'
     id 'com.chaquo.python'
@@ -13,6 +14,11 @@ android {
         targetSdk 35
         versionCode 1
         versionName '1.0'
+
+        // Chaquopy ABI configuration
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 }
 
@@ -21,9 +27,6 @@ chaquopy {
         version = "3.10"
 
         buildPython("python")
-        ndk {
-    abiFilters "arm64-v8a", "armeabi-v7a"
-        }
 
         pip {
             options("--timeout", "120", "--retries", "10")
@@ -64,8 +67,6 @@ chaquopy {
             install("pytz")
             install("packaging")
             install("tqdm")
-
-            // Missing library fix
             install("colorama")
         }
     }

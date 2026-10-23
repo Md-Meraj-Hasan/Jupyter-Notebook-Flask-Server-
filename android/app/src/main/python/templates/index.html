@@ -296,7 +296,30 @@
         /* Keep the fixed menu visible while notebook cells scroll. */
         body:not(.terminal-open) #notebook { scroll-margin-top:48px; }
 
-</style>
+
+
+        /* Targeted keyboard/editor height fix: keep the coding area above the extra toolbar. */
+        :root { --nicecoding-visible-height: 100dvh; --nicecoding-keyboard-toolbar-height: 0px; }
+        #coding-page { height: calc(var(--nicecoding-visible-height, 100dvh) - 48px) !important; min-height: 0 !important; box-sizing: border-box !important; }
+        #script-editor, #web-editor { min-height: 0 !important; height: auto !important; }
+        #script-editor .CodeMirror,
+        #web-editor .CodeMirror {
+            height: calc(var(--nicecoding-visible-height, 100dvh) - 84px - var(--nicecoding-keyboard-toolbar-height, 0px)) !important;
+            min-height: 80px !important;
+            max-height: none !important;
+            overflow: hidden !important;
+        }
+        #script-editor .CodeMirror-scroll,
+        #web-editor .CodeMirror-scroll {
+            height: 100% !important;
+            max-height: none !important;
+            min-height: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+    </style>
 </head>
 <body>
 
@@ -395,87 +418,28 @@
 
     window.addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
 
-    // Keep the editor's bottom edge above the custom symbol toolbar while the
-    // Android keyboard is open. Use the toolbar's measured top AFTER it is shown,
-    // then resize CodeMirror's viewport (not its content) so the final lines remain
-    // reachable by scrolling and are never covered by the toolbar.
-    const syncEditorHeightToToolbar = (keyboardOpen) => {
-        const editorNodes = document.querySelectorAll(
-            '#script-editor .CodeMirror, #web-editor .CodeMirror, #notebook .CodeMirror'
-        );
-        const editorInstances = [scriptEditor, webEditor, ...Object.values(editors)];
-        if (!keyboardOpen) {
-            editorNodes.forEach(node => {
-                node.style.removeProperty('height');
-                node.style.removeProperty('min-height');
-                node.style.removeProperty('max-height');
-                node.style.removeProperty('overflow');
-                const scroll = node.querySelector('.CodeMirror-scroll');
-                if (scroll) {
-                    scroll.style.removeProperty('height');
-                    scroll.style.removeProperty('max-height');
-                    scroll.style.removeProperty('min-height');
-                    scroll.style.removeProperty('overflow-y');
-                }
-            });
-            editorInstances.forEach(ed => { if (ed && ed.refresh) ed.refresh(); });
-            return;
-        }
-
-        const toolbar = document.getElementById('fixed-toolbar');
-        if (!toolbar || getComputedStyle(toolbar).display === 'none') return;
-        const toolbarTop = Math.floor(toolbar.getBoundingClientRect().top);
-        editorNodes.forEach(node => {
-            const rect = node.getBoundingClientRect();
-            // Clamp only to avoid a zero-height editor on unusually short viewports.
-            const available = Math.max(80, toolbarTop - Math.floor(rect.top));
-            node.style.setProperty('height', available + 'px', 'important');
-            node.style.setProperty('min-height', '0px', 'important');
-            node.style.setProperty('max-height', available + 'px', 'important');
-            node.style.setProperty('overflow', 'hidden', 'important');
-            const scroll = node.querySelector('.CodeMirror-scroll');
-            if (scroll) {
-                scroll.style.setProperty('height', '100%', 'important');
-                scroll.style.setProperty('max-height', '100%', 'important');
-                scroll.style.setProperty('min-height', '0px', 'important');
-                scroll.style.setProperty('overflow-y', 'auto', 'important');
-                scroll.style.setProperty('overscroll-behavior', 'contain', 'important');
-            }
-        });
-        editorInstances.forEach(ed => { if (ed && ed.refresh) ed.refresh(); });
-        if (lastFocusedEditor && lastFocusedEditor.getCursor) {
-            lastFocusedEditor.scrollIntoView(lastFocusedEditor.getCursor(), 40);
-        }
-    };
-
     const syncToolbar = () => {
         const toolbar = document.getElementById('fixed-toolbar');
         const fab = document.getElementById('fab-btn');
-        if (!toolbar || !fab || !window.visualViewport) return;
-        const viewport = window.visualViewport;
-        const keyboardOpen = viewport.height < (window.innerHeight * 0.9);
-        const outputPage = document.getElementById('coding-output-page');
-        if (document.body.classList.contains('terminal-open') ||
-            (outputPage && getComputedStyle(outputPage).display !== 'none')) {
-            toolbar.style.display = 'none';
-            syncEditorHeightToToolbar(false);
-            return;
-        }
-        if (keyboardOpen) {
-            toolbar.style.display = 'flex';
-            // Wait for flex layout so offsetHeight reflects the visible toolbar.
-            requestAnimationFrame(() => {
-                toolbar.style.top = Math.max(0, viewport.offsetTop + viewport.height - toolbar.offsetHeight) + 'px';
-                fab.style.top = Math.max(0, viewport.offsetTop + viewport.height - toolbar.offsetHeight - 70) + 'px';
-                fab.style.bottom = 'auto';
-                requestAnimationFrame(() => syncEditorHeightToToolbar(true));
-            });
-        } else {
-            toolbar.style.display = 'none';
-            toolbar.style.top = 'auto';
-            fab.style.top = 'auto';
-            fab.style.bottom = '30px';
-            syncEditorHeightToToolbar(false);
+        if (window.visualViewport) {
+            const viewport = window.visualViewport;
+            const isKeyboardOpen = viewport.height < initialHeight * 0.9;
+            // Keep the original toolbar behavior in Notebook/Python/HTML/CSS.
+            // The only added rule is to hide it while the dedicated output page is visible.
+            const outputPage = document.getElementById('coding-output-page');
+            if (document.body.classList.contains('terminal-open') ||
+                (outputPage && getComputedStyle(outputPage).display !== 'none')) {
+                toolbar.style.display = 'none';
+                return;
+            }
+            if (isKeyboardOpen) {
+                toolbar.style.display = 'flex';
+                toolbar.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight) + 'px';
+                fab.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight - 70) + 'px';
+            } else {
+                toolbar.style.display = 'none';
+                fab.style.top = 'auto'; fab.style.bottom = '30px';
+            }
         }
     };
 
@@ -483,6 +447,35 @@
         window.visualViewport.addEventListener('resize', syncToolbar);
         window.visualViewport.addEventListener('scroll', syncToolbar);
     }
+
+    // Keep the editor's bottom edge directly above the extra keyboard toolbar.
+    // This only adjusts the Python/HTML/CSS editor viewport; Notebook logic is untouched.
+    function syncEditorViewportHeight() {
+        const viewport = window.visualViewport;
+        const visibleHeight = viewport ? viewport.height : window.innerHeight;
+        const toolbar = document.getElementById('fixed-toolbar');
+        const outputPage = document.getElementById('coding-output-page');
+        const outputVisible = outputPage && getComputedStyle(outputPage).display !== 'none';
+        const keyboardOpen = !!(viewport && viewport.height < initialHeight * 0.9);
+        let toolbarHeight = 0;
+        if (keyboardOpen && toolbar && !document.body.classList.contains('terminal-open') && !outputVisible) {
+            // syncToolbar controls the toolbar's visibility and screen position.
+            toolbarHeight = toolbar.offsetHeight || 0;
+        }
+        document.documentElement.style.setProperty('--nicecoding-visible-height', Math.max(visibleHeight, 120) + 'px');
+        document.documentElement.style.setProperty('--nicecoding-keyboard-toolbar-height', toolbarHeight + 'px');
+        if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 30);
+        if (webEditor) setTimeout(() => webEditor.refresh(), 30);
+    }
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncEditorViewportHeight);
+        window.visualViewport.addEventListener('scroll', syncEditorViewportHeight);
+    }
+    window.addEventListener('resize', syncEditorViewportHeight);
+    document.addEventListener('focusin', () => setTimeout(syncEditorViewportHeight, 80));
+    document.addEventListener('focusout', () => setTimeout(syncEditorViewportHeight, 180));
+    setTimeout(syncEditorViewportHeight, 100);
+
 
     function addNewCell(content = "", language = "python") {
         cellCount++;

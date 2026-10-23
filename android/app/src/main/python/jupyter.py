@@ -117,11 +117,7 @@ _code_jobs_lock = threading.Lock()
 _code_globals = {"pd": pd, "plt": plt, "sns": sns, "__name__": "__main__"}
 
 class _JobOutput:
-    """Thread-safe output stream compatible with print() and server loggers.
-
-    Uvicorn's default logging formatter checks stream.isatty(). The coding
-    console is a captured stream, not a terminal, so report False explicitly.
-    """
+    """Captured output stream compatible with print() and Uvicorn loggers."""
     encoding = "utf-8"
     errors = "replace"
 

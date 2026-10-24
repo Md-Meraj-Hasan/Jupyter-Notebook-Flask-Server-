@@ -86,6 +86,93 @@ def _network_policy(code):
 
 app = Flask(__name__)
 
+# Automatic local-module discovery for the NiceCoding Python editor.
+# Import resolution order: active working directory first, then the NiceCoding
+# project directories (Python, Notebook, HTML_CSS, and nested subfolders).
+# This is configured by the APK itself, so users do not need to edit sys.path
+# or add import boilerplate to every script.
+_IMPORT_PATH_LOCK = threading.RLock()
+
+def _configure_local_import_paths():
+    try:
+        cwd = Path.cwd().resolve()
+    except Exception:
+        cwd = Path(__file__).resolve().parent
+
+    roots = []
+    # Find a NiceCoding project root from the active folder or this server file.
+    for start in (cwd, Path(__file__).resolve().parent):
+        for parent in (start, *start.parents):
+            if parent.name.lower() == "nicecoding" and parent.is_dir():
+                roots.append(parent)
+                break
+
+    # App-private project folder used by the NiceCoding Android app.
+    private_root = Path("/data/data/com.meraj.jupyternotebook/files/NiceCoding")
+    if private_root.is_dir():
+        roots.append(private_root)
+
+    # Shared-storage project folder, when the user keeps scripts in Downloads.
+    for shared_root in (
+        Path("/storage/emulated/0/Download/NiceCoding"),
+        Path("/storage/emulated/0/Downloads/NiceCoding"),
+    ):
+        if shared_root.is_dir():
+            roots.append(shared_root)
+
+    # Deduplicate roots while preserving their discovery order.
+    unique_roots = []
+    seen_roots = set()
+    for root in roots:
+        try:
+            root = root.resolve()
+            key = str(root)
+            if key not in seen_roots:
+                seen_roots.add(key)
+                unique_roots.append(root)
+        except Exception:
+            pass
+
+    # Current directory must win over every other local project directory.
+    ordered_dirs = [cwd]
+    for root in unique_roots:
+        ordered_dirs.append(root)
+        try:
+            for dirpath, dirnames, filenames in os.walk(str(root)):
+                # Avoid walking cache/version-control/build directories.
+                dirnames[:] = [d for d in dirnames if d not in {
+                    ".git", "__pycache__", ".venv", "venv", "build", ".gradle"
+                }]
+                ordered_dirs.append(Path(dirpath))
+        except Exception:
+            continue
+
+    unique_dirs = []
+    seen_dirs = set()
+    for directory in ordered_dirs:
+        try:
+            directory = directory.resolve()
+            key = str(directory)
+            if directory.is_dir() and key not in seen_dirs:
+                seen_dirs.add(key)
+                unique_dirs.append(key)
+        except Exception:
+            pass
+
+    # Keep current directory first, then project folders; preserve system paths.
+    with _IMPORT_PATH_LOCK:
+        current_paths = [p for p in sys.path if isinstance(p, str)]
+        non_project_paths = [p for p in current_paths if p not in seen_dirs]
+        sys.path[:] = unique_dirs + non_project_paths
+
+    return str(cwd)
+
+# Install the common import paths at server startup as well as before each run.
+try:
+    _configure_local_import_paths()
+except Exception:
+    pass
+
 # The user may import a local data folder from Android's Storage Access Framework.
 # Relative reads such as pd.read_csv("housing.csv") then resolve in that folder.
 _workspace_dir = Path(__file__).resolve().parent
@@ -156,6 +243,7 @@ def _run_code_job(job, code):
     # Keep variables across runs, as in an interactive Python console.
     _code_globals["__builtins__"] = local_builtins
     try:
+        _configure_local_import_paths()
         with _network_policy(code), contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
             exec(compile(code, "<coding-page>", "exec"), _code_globals, _code_globals)
     except KeyboardInterrupt:
@@ -241,6 +329,7 @@ def run_code():
         # resolve against the synchronized NiceCoding/Notebook directory.
         with _workspace_lock:
             os.chdir(str(_workspace_dir))
+            _configure_local_import_paths()
             with _network_policy(code), contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
                 tree = ast.parse(code)
                 last_node = tree.body[-1] if tree.body else None

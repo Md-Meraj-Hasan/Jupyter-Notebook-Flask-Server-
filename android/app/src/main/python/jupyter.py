@@ -463,19 +463,11 @@ def run_sql_query():
                     if cursor.description:
                         columns = [item[0] for item in cursor.description]
                         rows = cursor.fetchall()
-                        messages.append(f"Statement {index}: {len(rows)} row(s) returned")
-                        html_parts.append(f'<div style="margin:8px 0"><div style="font-weight:600;margin-bottom:5px">Result {index}</div>{_sql_result_table(columns, rows)}</div>')
+                        html_parts.append(_sql_result_table(columns, rows))
                     else:
-                        affected = max(cursor.rowcount, 0)
-                        kind = statement.lstrip().split(None, 1)[0].upper().rstrip(";") if statement.strip() else "SQL"
-                        if kind in ("INSERT", "UPDATE", "DELETE", "REPLACE"):
-                            msg = f"Statement {index}: Query OK · {affected} row(s) affected"
-                            if cursor.lastrowid: msg += f" · last inserted row ID: {cursor.lastrowid}"
-                        else:
-                            msg = f"Statement {index}: Query OK · statement executed"
-                        messages.append(msg)
-        messages.append(f"Executed {len(statements)} SQL statement(s) · SQLite database: {db_path.name}")
-        return jsonify({"ok": True, "output": "\n".join(messages), "html": "".join(html_parts), "final_val": ""})
+                        # Successful non-SELECT statements intentionally produce no explanatory text.
+                        pass
+        return jsonify({"ok": True, "output": "", "html": "".join(html_parts), "final_val": ""})
     except Exception as exc:
         return jsonify({"ok": False, "output": "SQLite error: " + str(exc), "html": "", "final_val": ""})
 

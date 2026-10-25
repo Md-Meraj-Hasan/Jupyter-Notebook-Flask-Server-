@@ -1,9 +1,16 @@
 {
-  "name": "indian-professional-rummy",
+  "name": "nicecoding-offline-ide",
   "version": "1.0.0",
-  "description": "Offline Indian Professional Rummy Android app",
+  "description": "Offline NiceCoding IDE with Jupyter-style Python and SQLite3 notebook cells plus HTML/CSS/JavaScript editors.",
   "main": "index.js",
-  "scripts": {"build": "echo Static app ready"},
-  "dependencies": {"@capacitor/android": "^7.4.3", "@capacitor/core": "^7.4.3"},
-  "devDependencies": {"@capacitor/cli": "^7.4.3"}
+  "scripts": {
+    "build": "echo \"NiceCoding Android project is built with the Gradle workflow\""
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
+  }
 }

@@ -1,0 +1,35 @@
+NiceCoding integration changes
+==============================
+
+Main UI
+- Jupyter-style notebook remains the initial/main screen.
+- Added per-cell Python / SQL (SQLite3) selector.
+- SQL cells run through Flask /run_sql and show results in a table.
+- Added SQLite database helpers: SHOW TABLES, SHOW DATABASES, USE database_name.
+- Python cells can use connect_sqlite() or SQLITE_DB_PATH to access the selected SQLite database.
+
+Coding workspaces
+- Added standalone Python editor with Run/Open/Save.
+- Added combined HTML + CSS + JavaScript workspace.
+- Added local offline CodeMirror modes for SQL, JavaScript, CSS and HTML.
+- Run All creates a sandboxed iframe preview from all three web editors.
+
+Files / downloads
+- Preserved notebook cell controls, theme, mobile symbol toolbar, output toggle and output download.
+- Notebook saves as standard .ipynb with NiceCoding language metadata or NiceCoding .json.
+- Old JSON arrays of notebook code strings are still accepted.
+- Added Android WebView file picker and native Downloads bridge.
+
+Android packaging
+- Added MainActivity.java to start the bundled Chaquopy/Waitress server and open the Jupyter Flask UI.
+- Bundled the updated Flask template and local assets under android/app/src/main/python/.
+- Updated app branding metadata to NiceCoding.
+
+Validation
+- Python py_compile passed.
+- JavaScript syntax checks passed.
+- SQLite backend smoke tests passed for CREATE, INSERT, SELECT, SHOW TABLES, SHOW DATABASES, USE.
+- Full Android Gradle build was not run in this environment because Gradle/Android SDK and the project's install-time dependencies are unavailable here. Run the supplied GitHub Actions workflow to verify the APK build.
+
+
+Follow-up fix: Added File > Import SQLite Database for existing .db/.sqlite/.sqlite3 files. The Flask endpoint validates file extension, SQLite header, and PRAGMA quick_check; stores the import in the app's database folder without overwriting an existing file; then selects it as CURRENT_DB and updates SQLITE_DB_PATH. The UI, backend, and Android-bundled copies were kept in sync.

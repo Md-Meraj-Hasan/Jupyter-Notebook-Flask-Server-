@@ -11,6 +11,8 @@
 
 <script src="{{ url_for('static', filename='js/codemirror.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/python.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sql.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/web-modes.js') }}"></script>
 <script src="{{ url_for('static', filename='js/html2canvas.min.js') }}"></script>
 
 
@@ -90,25 +92,90 @@
         .prime-btn { background: #546e7a; color: white; border: none; min-width: 44px; }
         .nav-btn { background: #3949ab; color: white; border: none; min-width: 44px; }
         .btn { cursor: pointer; border: none; padding: 4px 8px; border-radius: 4px; background: transparent; color: var(--text-main); font-size: 13px; }
+
+        .dropdown:focus-within .dropdown-content { display: block; }
+        .dropdown-content div:hover { background: rgba(80,130,180,.12); }
+        .workspace-view { width:95%; max-width:1100px; margin:14px auto; padding-bottom:180px; }
+        .workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-weight:800; margin:4px 0 10px; }
+        .workspace-actions { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+        .workspace-actions button, .cell-language { background:var(--toolbar-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:5px; padding:7px 9px; font-weight:700; }
+        .cell-language { padding:4px 5px; font-size:12px; max-width:118px; }
+        .sql-note { font-size:12px; color:var(--label-color); margin:4px 0 0; }
+        .sql-table-wrap { overflow:auto; max-width:100%; margin-top:8px; }
+        .sql-result-table { border-collapse:collapse; width:max-content; min-width:100%; font-size:13px; }
+        .sql-result-table th,.sql-result-table td { border:1px solid var(--border-color); padding:7px 9px; text-align:left; white-space:nowrap; }
+        .sql-result-table th { background:var(--toolbar-bg); color:var(--label-color); }
+        .editor-card { border:1px solid var(--border-color); background:var(--cell-bg); margin:8px 0; }
+        .editor-card h3 { font-size:13px; margin:0; padding:7px 9px; background:var(--toolbar-bg); border-bottom:1px solid var(--border-color); }
+        .web-editors { display:grid; grid-template-columns:1fr; gap:8px; }
+        .web-editors .CodeMirror { height:190px; }
+        .web-preview { width:100%; height:360px; border:1px solid var(--border-color); background:white; border-radius:4px; }
+        .workspace-output { border:1px solid var(--border-color); padding:10px; min-height:40px; overflow:auto; white-space:pre-wrap; }
+        .menu-status { font-size:11px; opacity:.75; margin-left:auto; padding:0 8px; }
+        @media (min-width:760px) { .web-editors { grid-template-columns:1fr 1fr 1fr; } .web-editors .CodeMirror { height:240px; } }
+        @media (max-width:520px) { .menu-bar { padding:4px; flex-wrap:wrap; } .menu-item { padding:8px; } .workspace-view { width:98%; } .web-preview { height:300px; } }
     </style>
 </head>
 <body>
 
 <div class="menu-bar">
     <div class="dropdown">
-        <div class="menu-item">📁 File</div>
+        <div class="menu-item" tabindex="0">📁 File ▾</div>
         <div class="dropdown-content">
-            <div onclick="newNotebook()">📄 New</div>
-            <div onclick="document.getElementById('file-input').click()">📂 Open</div>
-            <div onclick="saveToFile()">⭐ Save</div>
+            <div onclick="newNotebook()">📄 New Notebook</div>
+            <div onclick="document.getElementById('file-input').click()">📂 Open Notebook (.ipynb / .json)</div>
+            <div onclick="document.getElementById('sqlite-file-input').click()">🗄️ Import SQLite Database (.db / .sqlite)</div>
+            <div onclick="saveToFile('ipynb')">💾 Save Notebook (.ipynb)</div>
+            <div onclick="saveToFile('json')">⬇️ Save Notebook JSON</div>
         </div>
     </div>
-    <div class="btn" style="margin-left:10px" onclick="toggleTheme()">🌙 Theme</div>
-    <input type="file" id="file-input" style="display:none" onchange="loadFromFile(event)">
+    <div class="dropdown">
+        <div class="menu-item" tabindex="0">🧰 Workspace ▾</div>
+        <div class="dropdown-content">
+            <div onclick="showWorkspace('notebook')">📓 Jupyter Notebook · Python + SQL</div>
+            <div onclick="showWorkspace('python')">🐍 Python Editor</div>
+            <div onclick="showWorkspace('web')">🌐 HTML / CSS / JavaScript</div>
+        </div>
+    </div>
+    <div class="btn" style="margin-left:4px" onclick="toggleTheme()">🌙 Theme</div>
+    <span class="menu-status" id="workspace-status">Jupyter Notebook</span>
+    <input type="file" id="file-input" accept=".ipynb,.json" style="display:none" onchange="loadFromFile(event)">
+    <input type="file" id="sqlite-file-input" accept=".db,.sqlite,.sqlite3,application/vnd.sqlite3,application/x-sqlite3" style="display:none" onchange="importSQLiteDatabase(event)">
+    <input type="file" id="python-file-input" accept=".py,.txt" style="display:none" onchange="loadWebAsset(event,'python')">
+    <input type="file" id="html-file-input" accept=".html,.htm,.txt" style="display:none" onchange="loadWebAsset(event,'html')">
+    <input type="file" id="css-file-input" accept=".css,.txt" style="display:none" onchange="loadWebAsset(event,'css')">
+    <input type="file" id="js-file-input" accept=".js,.txt" style="display:none" onchange="loadWebAsset(event,'js')">
 </div>
 
 <div class="container" id="notebook"></div>
 <button class="fab-add" id="fab-btn" onclick="addNewCell()" title="Add Cell">+</button>
+
+<div class="workspace-view" id="python-view" style="display:none">
+    <div class="workspace-heading"><span>🐍 Python Editor</span><span>Standalone Python runtime</span></div>
+    <div class="workspace-actions">
+        <button onclick="runPythonEditor()">▶ Run</button><button onclick="openPythonFile()">📂 Open .py</button><button onclick="savePythonFile()">💾 Save .py</button><button onclick="showWorkspace('notebook')">📓 Back to Notebook</button>
+    </div>
+    <textarea id="python-code">print("Hello from NiceCoding")</textarea>
+    <h3>Output</h3><div id="python-output" class="workspace-output"></div>
+</div>
+
+<div class="workspace-view" id="web-view" style="display:none">
+    <div class="workspace-heading"><span>🌐 Web Development</span><span>HTML + CSS + JavaScript · Offline</span></div>
+    <div class="workspace-actions">
+        <button onclick="runWebPreview()">▶ Run All</button><button onclick="openWebFile('html')">📂 Open HTML</button><button onclick="saveWebFile('html')">💾 Save HTML</button><button onclick="openWebFile('css')">📂 Open CSS</button><button onclick="saveWebFile('css')">💾 Save CSS</button><button onclick="openWebFile('js')">📂 Open JS</button><button onclick="saveWebFile('js')">💾 Save JS</button>
+    </div>
+    <div class="web-editors">
+        <div class="editor-card"><h3>HTML</h3><textarea id="html-code"><main><h1>Hello NiceCoding!</h1><button id="helloBtn">Click me</button><p id="message">JavaScript will update this text.</p></main></textarea></div>
+        <div class="editor-card"><h3>CSS</h3><textarea id="css-code">body { font-family: sans-serif; padding: 20px; color: #222; }
+button { padding: 10px 16px; border-radius: 8px; cursor: pointer; }</textarea></div>
+        <div class="editor-card"><h3>JavaScript</h3><textarea id="js-code">document.getElementById('helloBtn').addEventListener('click', () => {
+  document.getElementById('message').textContent = 'JavaScript is working!';
+});</textarea></div>
+    </div>
+    <div class="workspace-heading" style="margin-top:16px">🖥️ Live Preview</div>
+    <iframe id="web-preview" class="web-preview" title="Web preview" sandbox="allow-scripts"></iframe>
+    <div class="workspace-actions"><button onclick="showWorkspace('notebook')">📓 Back to Notebook</button></div>
+</div>
 
 <div id="fixed-toolbar">
     <div class="symbol-row">
@@ -144,182 +211,280 @@
 <script>
     let cellCount = 0;
     let editors = {};
+    let cellLanguages = {};
     let lastFocusedEditor = null;
+    let activeWorkspace = 'notebook';
+    let pythonEditor = null, htmlEditor = null, cssEditor = null, jsEditor = null;
     const initialHeight = window.innerHeight;
+    const themeNow = () => document.body.classList.contains('night-mode') ? 'material-darker' : 'neo';
+    const escapeHtml = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
-    window.addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
+    const beforeUnloadHandler = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', beforeUnloadHandler);
 
     const syncToolbar = () => {
         const toolbar = document.getElementById('fixed-toolbar');
         const fab = document.getElementById('fab-btn');
-        if (window.visualViewport) {
-            const viewport = window.visualViewport;
-            const isKeyboardOpen = viewport.height < initialHeight * 0.9;
-            if (isKeyboardOpen) {
-                toolbar.style.display = 'flex';
-                toolbar.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight) + 'px';
-                fab.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight - 70) + 'px';
-            } else {
-                toolbar.style.display = 'none';
-                fab.style.top = 'auto'; fab.style.bottom = '30px';
-            }
+        if (!toolbar || !fab || !window.visualViewport) return;
+        const viewport = window.visualViewport;
+        const isKeyboardOpen = viewport.height < initialHeight * 0.9;
+        if (isKeyboardOpen) {
+            toolbar.style.display = 'flex';
+            toolbar.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight) + 'px';
+            fab.style.top = (viewport.offsetTop + viewport.height - toolbar.offsetHeight - 70) + 'px';
+        } else {
+            toolbar.style.display = 'none'; fab.style.top = 'auto'; fab.style.bottom = '30px';
         }
     };
-
     if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', syncToolbar);
         window.visualViewport.addEventListener('scroll', syncToolbar);
     }
 
-    function addNewCell(content = "") {
+    function showWorkspace(name) {
+        activeWorkspace = name;
+        document.getElementById('notebook').style.display = name === 'notebook' ? 'flex' : 'none';
+        document.getElementById('fab-btn').style.display = name === 'notebook' ? 'block' : 'none';
+        document.getElementById('python-view').style.display = name === 'python' ? 'block' : 'none';
+        document.getElementById('web-view').style.display = name === 'web' ? 'block' : 'none';
+        document.getElementById('workspace-status').textContent = name === 'notebook' ? 'Jupyter Notebook · Python + SQL' : name === 'python' ? 'Python Editor' : 'HTML / CSS / JavaScript';
+        if (name === 'python') initPythonEditor();
+        if (name === 'web') initWebEditors();
+        setTimeout(() => {
+            Object.values(editors).forEach(ed => ed.refresh());
+            [pythonEditor, htmlEditor, cssEditor, jsEditor].forEach(ed => { if (ed) ed.refresh(); });
+            syncToolbar();
+        }, 40);
+    }
+
+    function addNewCell(content = '', language = 'python') {
         cellCount++;
         const id = cellCount;
         const html = `
             <div class="cell" id="cell-${id}">
                 <div class="toolbar">
-                    <span class="cell-label">In [${id}]:</span>
+                    <span class="cell-label" id="label-${id}">In [${id}]:</span>
+                    <select class="cell-language" aria-label="Cell language" onchange="changeCellLanguage(${id},this.value)">
+                        <option value="python" ${language === 'python' ? 'selected' : ''}>🐍 Python</option>
+                        <option value="sql" ${language === 'sql' ? 'selected' : ''}>🗃️ SQL / SQLite3</option>
+                    </select>
                     <button class="btn-run" onclick="runCell(${id})">▶ Run</button>
-                    <button class="btn-nav" onclick="moveCellUp(${id})">⬆️</button>
-                    <button class="btn-nav" onclick="moveCellDown(${id})">⬇️</button>
-                    <button class="btn" onclick="toggleOutput(${id})">👁️</button>
-                    <button class="btn" onclick="deleteCell(${id})" style="margin-left:auto;color:#cc0000">🗑</button>
+                    <button class="btn-nav" onclick="moveCellUp(${id})" title="Move cell up">⬆️</button>
+                    <button class="btn-nav" onclick="moveCellDown(${id})" title="Move cell down">⬇️</button>
+                    <button class="btn" onclick="toggleOutput(${id})" title="Show/hide output">👁️</button>
+                    <button class="btn" onclick="deleteCell(${id})" style="margin-left:auto;color:#cc0000" title="Delete cell">🗑</button>
                 </div>
-                <textarea id="code-${id}">${content}</textarea>
+                <textarea id="code-${id}"></textarea>
                 <div id="out-cont-${id}" class="output-container">
-                    <button class="download-btn" onclick="downloadOutput(${id})" title="Download">⬇️</button>
+                    <button class="download-btn" onclick="downloadOutput(${id})" title="Download output as PNG">⬇️ Download output</button>
                     <div id="output-${id}" class="output-area"></div>
                 </div>
             </div>`;
         document.getElementById('notebook').insertAdjacentHTML('beforeend', html);
-        
         const editor = CodeMirror.fromTextArea(document.getElementById(`code-${id}`), {
-            mode: "python", 
-            theme: document.body.classList.contains('night-mode') ? "material-darker" : "neo", 
-            lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
+            mode: language === 'sql' ? 'text/x-sql' : 'python', theme: themeNow(),
+            lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity,
+            lineWrapping: false, extraKeys: { 'Ctrl-Enter': () => runCell(id), 'Cmd-Enter': () => runCell(id) }
         });
-        
-        editor.on("focus", () => { lastFocusedEditor = editor; syncToolbar(); });
-        editors[id] = editor;
+        editor.setValue(content || '');
+        editor.on('focus', () => { lastFocusedEditor = editor; syncToolbar(); });
+        editors[id] = editor; cellLanguages[id] = language;
+        updateCellLabel(id);
+        return id;
     }
 
+    function updateCellLabel(id) {
+        const label = document.getElementById(`label-${id}`);
+        if (label) label.textContent = `${cellLanguages[id] === 'sql' ? 'SQL' : 'In'} [${id}]:`;
+    }
+
+    function changeCellLanguage(id, language) {
+        if (!editors[id]) return;
+        cellLanguages[id] = language === 'sql' ? 'sql' : 'python';
+        editors[id].setOption('mode', cellLanguages[id] === 'sql' ? 'text/x-sql' : 'python');
+        updateCellLabel(id);
+    }
+
+    function renderSqlResult(data) {
+        let html = `<div>${escapeHtml(data.output || (data.error ? 'SQL error' : 'Executed'))}</div>`;
+        if (Array.isArray(data.columns) && data.columns.length) {
+            html += '<div class="sql-table-wrap"><table class="sql-result-table"><thead><tr>' + data.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
+            (data.rows || []).forEach(row => { html += '<tr>' + data.columns.map(col => `<td>${escapeHtml(row[col])}</td>`).join('') + '</tr>'; });
+            html += '</tbody></table></div>';
+        }
+        return html;
+    }
 
     async function runCell(id) {
-        const code = editors[id].getValue();
+        const editor = editors[id]; if (!editor) return;
+        const code = editor.getValue();
         const outputDiv = document.getElementById(`output-${id}`);
         const container = document.getElementById(`out-cont-${id}`);
-        container.style.display = "block";
-        outputDiv.innerHTML = "Executing...";
-        
+        container.style.display = 'block'; outputDiv.textContent = 'Executing...';
         try {
-            const response = await fetch('/run', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ code: code })
+            const isSql = cellLanguages[id] === 'sql';
+            const response = await fetch(isSql ? '/run_sql' : '/run', {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code})
             });
             const data = await response.json();
-            let resultHtml = "";
-            if ((data.output || "").trim() !== "") resultHtml += `<pre style="margin:0; white-space: pre-wrap;">${data.output}</pre>`;
+            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            if (isSql) { outputDiv.innerHTML = renderSqlResult(data); return; }
+            let resultHtml = '';
+            if ((data.output || '').trim() !== '') resultHtml += `<pre style="margin:0;white-space:pre-wrap;">${escapeHtml(data.output)}</pre>`;
             if (data.html) resultHtml += `<div style="margin-top:10px;">${data.html}</div>`;
-            if (data.final_val && data.final_val !== "None") {
-                resultHtml += `<div style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:8px; display:flex; gap:10px;">
-                               <span class="cell-label" style="font-size:14px;">Out [${id}]:</span> 
-                               <div style="flex-grow:1; white-space: pre-wrap;">${data.final_val}</div></div>`;
-            }
+            if (data.final_val && data.final_val !== 'None') resultHtml += `<div style="margin-top:10px;border-top:1px dashed var(--border-color);padding-top:8px;display:flex;gap:10px;"><span class="cell-label" style="font-size:14px;">Out [${id}]:</span><div style="flex-grow:1;white-space:pre-wrap;">${escapeHtml(data.final_val)}</div></div>`;
             outputDiv.innerHTML = resultHtml || "<span style='color:gray;'>Executed</span>";
-        } catch (err) { outputDiv.innerHTML = "<span style='color:red;'>Error: " + err + "</span>"; }
+        } catch (err) { outputDiv.innerHTML = `<span style="color:red;">Error: ${escapeHtml(err.message || err)}</span>`; }
     }
 
-    // FIXED: Full Scroll Width Capture Logic
     function downloadOutput(id) {
         const outputElement = document.getElementById(`output-${id}`);
         const container = document.getElementById(`out-cont-${id}`);
-        
-        // Temporarily allow overflow to measure full width
-        const originalWidth = outputElement.style.width;
+        if (!window.html2canvas) { downloadText(`cell-${id}-output.txt`, outputElement.innerText, 'text/plain'); return; }
         const originalScrollLeft = container.scrollLeft;
-        
-        html2canvas(outputElement, {
-            backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-body'),
-            scale: 2,
-            scrollX: 0,
-            scrollY: 0,
-            width: outputElement.scrollWidth, // Captures full width
-            height: outputElement.scrollHeight,
-            useCORS: true,
-            logging: false
-        }).then(canvas => {
-            const link = document.createElement("a");
-            link.download = `cell-${id}-analysis.png`;
-            link.href = canvas.toDataURL("image/png");
-            link.click();
-            container.scrollLeft = originalScrollLeft; // Restore scroll position
-        });
+        html2canvas(outputElement, { backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-body'), scale: 2, scrollX: 0, scrollY: 0, width: outputElement.scrollWidth, height: Math.max(outputElement.scrollHeight, 1), useCORS: true, logging: false })
+            .then(canvas => { downloadText(`cell-${id}-analysis.png`, canvas.toDataURL('image/png'), 'image/png', true); container.scrollLeft = originalScrollLeft; })
+            .catch(() => downloadText(`cell-${id}-output.txt`, outputElement.innerText, 'text/plain'));
     }
 
     function insertSymbol(sym) {
         if (!lastFocusedEditor) return;
-        const doc = lastFocusedEditor.getDoc();
-        const cursor = doc.getCursor();
-        doc.replaceRange(sym, cursor);
-        lastFocusedEditor.focus();
-        if (['()', '[]', '{}', '""', "''"].includes(sym)) doc.setCursor({ line: cursor.line, ch: cursor.ch + 1 });
+        const doc = lastFocusedEditor.getDoc(), cursor = doc.getCursor();
+        doc.replaceRange(sym, cursor); lastFocusedEditor.focus();
+        if (['()', '[]', '{}', '""', "''"].includes(sym)) doc.setCursor({line:cursor.line,ch:cursor.ch+1});
     }
-
     function moveCursor(dir) {
         if (!lastFocusedEditor) return;
         lastFocusedEditor.focus();
-        if (dir === 'up') lastFocusedEditor.execCommand("goLineUp");
-        else if (dir === 'down') lastFocusedEditor.execCommand("goLineDown");
-        else if (dir === 'left') lastFocusedEditor.execCommand("goCharLeft");
-        else if (dir === 'right') lastFocusedEditor.execCommand("goCharRight");
+        if (dir === 'up') lastFocusedEditor.execCommand('goLineUp');
+        else if (dir === 'down') lastFocusedEditor.execCommand('goLineDown');
+        else if (dir === 'left') lastFocusedEditor.execCommand('goCharLeft');
+        else if (dir === 'right') lastFocusedEditor.execCommand('goCharRight');
     }
-
     function toggleTheme() {
-        document.body.classList.toggle('night-mode');
-        const isNight = document.body.classList.contains('night-mode');
-        Object.values(editors).forEach(ed => ed.setOption("theme", isNight ? "material-darker" : "neo"));
-        localStorage.setItem('theme', isNight ? 'night' : 'light');
+        document.body.classList.toggle('night-mode'); const theme = themeNow();
+        [...Object.values(editors), pythonEditor, htmlEditor, cssEditor, jsEditor].forEach(ed => { if (ed) ed.setOption('theme', theme); });
+        localStorage.setItem('theme', document.body.classList.contains('night-mode') ? 'night' : 'light');
     }
+    function toggleOutput(id) { const cont = document.getElementById(`out-cont-${id}`); cont.style.display = getComputedStyle(cont).display === 'none' ? 'block' : 'none'; }
+    function deleteCell(id) { if (confirm('Delete this cell?')) { const el=document.getElementById(`cell-${id}`); if(el)el.remove(); if(editors[id])editors[id].toTextArea(); delete editors[id]; delete cellLanguages[id]; } }
+    function newNotebook() { if (confirm('Create a new empty notebook?')) { clearNotebook(); addNewCell(); showWorkspace('notebook'); } }
+    function clearNotebook() { Object.values(editors).forEach(ed => ed.toTextArea()); editors={}; cellLanguages={}; cellCount=0; document.getElementById('notebook').innerHTML=''; }
 
-    function toggleOutput(id) {
-        const cont = document.getElementById(`out-cont-${id}`);
-        cont.style.display = cont.style.display === "none" ? "block" : "none";
+    function notebookPayload() {
+        const cells = Array.from(document.querySelectorAll('#notebook .cell')).map(cell => {
+            const id = Number(cell.id.replace('cell-',''));
+            return { language: cellLanguages[id] || 'python', code: editors[id] ? editors[id].getValue() : '' };
+        });
+        return cells;
     }
-
-    function deleteCell(id) { if(confirm("Delete?")) { document.getElementById(`cell-${id}`).remove(); delete editors[id]; } }
-    
-    function newNotebook() { if(confirm("Clear?")) { document.getElementById('notebook').innerHTML = ""; cellCount = 0; editors = {}; addNewCell(); } }
-
-    function saveToFile() { 
-        const codes = Object.values(editors).map(ed => ed.getValue());
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(codes)], {type: "application/json"}));
-        a.download = "notebook.json"; a.click();
+    function saveToFile(format='ipynb') {
+        const cells = notebookPayload();
+        let content, filename, mime;
+        if (format === 'json') { content=JSON.stringify({format:'nicecoding-notebook',version:2,cells},null,2); filename='NiceCoding-notebook.json'; mime='application/json'; }
+        else {
+            const nb = {cells:cells.map(c=>({cell_type:'code',execution_count:null,metadata:{nicecoding_language:c.language},outputs:[],source:(c.code.match(/[^\n]*\n|[^\n]+$/g) || [])})),metadata:{kernelspec:{display_name:'Python 3 (NiceCoding)',language:'python',name:'python3'},language_info:{name:'python'}},nbformat:4,nbformat_minor:5};
+            content=JSON.stringify(nb,null,2); filename='NiceCoding.ipynb'; mime='application/x-ipynb+json';
+        }
+        downloadText(filename, content, mime);
     }
-    
+    function normalizeLoadedNotebook(data) {
+        if (Array.isArray(data)) return data.map(c => typeof c === 'string' ? {code:c,language:'python'} : {code:String(c.code||c.query||''),language:c.language||'python'});
+        if (data && Array.isArray(data.cells)) return data.cells.filter(c => c.cell_type === undefined || c.cell_type === 'code' || c.type === 'code').map(c => {
+            let source = c.source !== undefined ? c.source : (c.code !== undefined ? c.code : c.query || '');
+            if (Array.isArray(source)) source = source.join('');
+            const language = (c.metadata && c.metadata.nicecoding_language) || c.language || (c.cell_type === 'sql' ? 'sql' : 'python');
+            return {code:String(source),language:language === 'sql' ? 'sql' : 'python'};
+        });
+        throw new Error('Unsupported notebook file format. Open a .ipynb or NiceCoding .json file.');
+    }
     function loadFromFile(event) {
+        const file = event.target.files && event.target.files[0]; if (!file) return;
         const reader = new FileReader();
-        reader.onload = (e) => {
-            const codes = JSON.parse(e.target.result);
-            document.getElementById('notebook').innerHTML = ""; cellCount = 0; editors = {};
-            codes.forEach(c => addNewCell(c));
-        };
-        reader.readAsText(event.target.files[0]);
+        reader.onload = e => { try { const cells=normalizeLoadedNotebook(JSON.parse(e.target.result)); clearNotebook(); cells.forEach(c=>addNewCell(c.code,c.language)); if(!cells.length)addNewCell(); showWorkspace('notebook'); }
+            catch(err) { alert('Could not open notebook: ' + (err.message || err)); } finally { event.target.value=''; } };
+        reader.onerror = () => alert('Could not read this file.'); reader.readAsText(file);
+    }
+    async function importSQLiteDatabase(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const allowed = /\.(db|sqlite|sqlite3)$/i.test(file.name);
+        if (!allowed) { alert('Please select a .db, .sqlite, or .sqlite3 file.'); event.target.value=''; return; }
+        const form = new FormData();
+        form.append('database', file, file.name);
+        try {
+            const response = await fetch('/import_sqlite', { method: 'POST', body: form });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || 'Database import failed.');
+            showWorkspace('notebook');
+            alert('SQLite database imported successfully and selected: ' + data.database + '\n\nUse SQL cell commands such as SHOW TABLES, or use connect_sqlite() in a Python cell/editor.');
+        } catch (error) {
+            alert('Could not import SQLite database: ' + (error.message || error));
+        } finally {
+            event.target.value = '';
+        }
     }
 
-    function moveCellUp(id) {
-        const cell = document.getElementById(`cell-${id}`);
-        if (cell.previousElementSibling) { cell.parentNode.insertBefore(cell, cell.previousElementSibling); editors[id].refresh(); }
-    }
+    function moveCellUp(id) { const cell=document.getElementById(`cell-${id}`); if(cell && cell.previousElementSibling){cell.parentNode.insertBefore(cell,cell.previousElementSibling); Object.values(editors).forEach(ed=>ed.refresh());} }
+    function moveCellDown(id) { const cell=document.getElementById(`cell-${id}`); if(cell && cell.nextElementSibling){cell.parentNode.insertBefore(cell.nextElementSibling,cell); Object.values(editors).forEach(ed=>ed.refresh());} }
 
-    function moveCellDown(id) {
-        const cell = document.getElementById(`cell-${id}`);
-        if (cell.nextElementSibling) { cell.parentNode.insertBefore(cell.nextElementSibling, cell); editors[id].refresh(); }
+    function initPythonEditor() {
+        if (pythonEditor) return;
+        pythonEditor = CodeMirror.fromTextArea(document.getElementById('python-code'), {mode:'python',theme:themeNow(),lineNumbers:true,indentUnit:4,matchBrackets:true,viewportMargin:Infinity,extraKeys:{'Ctrl-Enter':runPythonEditor,'Cmd-Enter':runPythonEditor}});
+        pythonEditor.on('focus',()=>{lastFocusedEditor=pythonEditor;syncToolbar();});
+    }
+    async function runPythonEditor() {
+        initPythonEditor(); const out=document.getElementById('python-output'); out.textContent='Executing...';
+        try { const response=await fetch('/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:pythonEditor.getValue()})}); const data=await response.json();
+            let text=(data.output||''); if(data.final_val)text+=(text?'\n':'')+data.final_val; out.textContent=text || 'Executed'; if(data.html)out.insertAdjacentHTML('beforeend', '\n'+data.html);
+        } catch(err) { out.textContent='Error: '+(err.message||err); }
+    }
+    function openPythonFile(){document.getElementById('python-file-input').click();}
+    function savePythonFile(){initPythonEditor();downloadText('script.py',pythonEditor.getValue(),'text/x-python');}
+
+    function initWebEditors() {
+        if (htmlEditor) return;
+        const common={theme:themeNow(),lineNumbers:true,indentUnit:2,matchBrackets:true,viewportMargin:Infinity,lineWrapping:false};
+        htmlEditor=CodeMirror.fromTextArea(document.getElementById('html-code'),Object.assign({},common,{mode:'htmlmixed'}));
+        cssEditor=CodeMirror.fromTextArea(document.getElementById('css-code'),Object.assign({},common,{mode:'css'}));
+        jsEditor=CodeMirror.fromTextArea(document.getElementById('js-code'),Object.assign({},common,{mode:'javascript'}));
+        [htmlEditor,cssEditor,jsEditor].forEach(ed=>ed.on('focus',()=>{lastFocusedEditor=ed;syncToolbar();}));
+    }
+    function runWebPreview() {
+        initWebEditors();
+        const html=htmlEditor.getValue(), css=cssEditor.getValue(), js=jsEditor.getValue().replace(/<\/script/gi,'<\\/script');
+        const srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body>'+html+'<script>'+js+'<\/script></body></html>';
+        document.getElementById('web-preview').srcdoc=srcdoc;
+    }
+    function openWebFile(kind) { const id=kind==='html'?'html-file-input':kind==='css'?'css-file-input':'js-file-input'; document.getElementById(id).click(); }
+    function loadWebAsset(event,kind) {
+        const file=event.target.files && event.target.files[0]; if(!file)return;
+        const reader=new FileReader(); reader.onload=e=>{ if(kind==='python'){initPythonEditor();pythonEditor.setValue(String(e.target.result));showWorkspace('python');} else {initWebEditors();(kind==='html'?htmlEditor:kind==='css'?cssEditor:jsEditor).setValue(String(e.target.result));showWorkspace('web');} event.target.value=''; };
+        reader.onerror=()=>alert('Could not read file.');reader.readAsText(file);
+    }
+    function saveWebFile(kind) { initWebEditors(); const ed=kind==='html'?htmlEditor:kind==='css'?cssEditor:jsEditor; downloadText(kind==='html'?'index.html':kind==='css'?'style.css':'app.js',ed.getValue(),kind==='html'?'text/html':kind==='css'?'text/css':'text/javascript'); }
+    function utf8ToBase64(value) {
+        const bytes = new TextEncoder().encode(value); let binary = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        return btoa(binary);
+    }
+    function downloadText(filename, content, mime='text/plain', isDataUrl=false) {
+        if (window.NiceCodingBridge && typeof window.NiceCodingBridge.saveBase64File === 'function') {
+            const payload = isDataUrl ? String(content).split(',')[1] : utf8ToBase64(String(content));
+            window.NiceCodingBridge.saveBase64File(filename, payload, mime);
+            return;
+        }
+        if (isDataUrl) { const a=document.createElement('a'); a.href=content; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); return; }
+        const blob=new Blob([content],{type:mime+';charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+        a.href=url;a.download=filename;a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
     }
 
     window.onload = () => {
         if (localStorage.getItem('theme') === 'night') document.body.classList.add('night-mode');
         addNewCell();
-    }
+        initPythonEditor(); initWebEditors();
+        showWorkspace('notebook');
+    };
 </script>
 </body>
 </html>

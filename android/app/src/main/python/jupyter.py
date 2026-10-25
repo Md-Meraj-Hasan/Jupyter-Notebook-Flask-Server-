@@ -373,34 +373,3 @@ if __name__ == "__main__":
     print("\nhttp://127.0.0.1:8000\n")
     serve(app, host="127.0.0.1", port=8000, threads=8)
 
-
-
-# HTML/CSS/JavaScript editor workspace: saved files share one folder.
-from pathlib import Path as _Path
-_WEB_WORKSPACE = _Path(__file__).resolve().parent / "web_workspace"
-_WEB_WORKSPACE.mkdir(parents=True, exist_ok=True)
-_WEB_DEFAULTS = {
- "index.html": "<!doctype html>\\n<html>\\n<head><meta charset=\\\"utf-8\\\"><title>My page</title></head>\\n<body><h1>Hello, world!</h1><button id=\\\"helloBtn\\\">Click me</button></body>\\n</html>\\n",
- "style.css": "body { font-family: Arial, sans-serif; padding: 24px; }\\nh1 { color: #2878d0; }\\n",
- "script.js": "document.getElementById('helloBtn')?.addEventListener('click', () => alert('HTML, CSS and JavaScript are connected!'));\\n"
-}
-@app.route("/web-editor")
-def web_editor_page():
- return render_template("web_editor.html")
-@app.route("/api/web-files", methods=["GET","POST"])
-def web_files_api():
- if request.method == "GET":
-  values={}
-  for key,fn in (("html","index.html"),("css","style.css"),("js","script.js")):
-   p=_WEB_WORKSPACE/fn
-   if not p.exists(): p.write_text(_WEB_DEFAULTS[fn],encoding="utf-8")
-   values[key]=p.read_text(encoding="utf-8")
-  return jsonify({"ok":True,**values})
- try:
-  data=request.get_json(silent=True) or {}
-  for key,fn in (("html","index.html"),("css","style.css"),("js","script.js")):
-   val=data.get(key,"")
-   if not isinstance(val,str): return jsonify({"ok":False,"error":"Invalid content"}),400
-   (_WEB_WORKSPACE/fn).write_text(val,encoding="utf-8")
-  return jsonify({"ok":True})
- except Exception as exc: return jsonify({"ok":False,"error":str(exc)}),500

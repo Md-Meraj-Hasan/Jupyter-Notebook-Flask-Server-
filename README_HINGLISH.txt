@@ -27,4 +27,3 @@ IMPORTANT:
 Yeh Tkinter Python file ka direct one-click conversion nahi hai. Android ke liye HTML/CSS/JavaScript interface aur game logic port ki gayi hai. APK build karne ke liye GitHub Actions internet use karega. App ka game offline chalega.
 
 LATEST UPDATE: Table tray now displays each player’s latest discarded card (YOU and CPU players). WASTE remains the action to discard the selected card. The bottom action grid spans the full available width.
-\nHTML/CSS/JAVASCRIPT WORKSPACE: open http://127.0.0.1:8000/web-editor. index.html, style.css and script.js auto-save together in web_workspace.\n

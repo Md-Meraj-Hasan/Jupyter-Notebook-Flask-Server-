@@ -12,6 +12,20 @@
 <script src="{{ url_for('static', filename='js/codemirror.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/python.min.js') }}"></script>
 <script>
+/* Lightweight offline JavaScript syntax mode for CodeMirror. */
+(function(){ if(!window.CodeMirror || CodeMirror.modes.javascript) return;
+CodeMirror.defineMode("javascript", function(){ return {startState:function(){return {string:null,comment:false};},token:function(stream,state){
+ if(state.comment){if(stream.skipTo("*/")){stream.match("*/");state.comment=false;}else stream.skipToEnd();return "comment";}
+ if(state.string){while(!stream.eol()){var ch=stream.next();if(ch===state.string){state.string=null;break;}if(ch==="\\\\")stream.next();}return "string";}
+ if(stream.eatSpace())return null;
+ if(stream.match("//")){stream.skipToEnd();return "comment";}
+ if(stream.match("/*")){state.comment=true;return "comment";}
+ if(stream.match(/^(?:'[^']*'|"[^"]*"|`[^`]*`)/))return "string";
+ if(stream.match(/^(?:const|let|var|function|return|if|else|for|while|new|class|this|true|false|null|undefined|async|await|import|export|from|try|catch|throw)\\b/))return "keyword";
+ if(stream.match(/^[A-Za-z_$][\\w$]*(?=\\s*\\()/))return "def";
+ if(stream.match(/^\\d+(?:\\.\\d+)?/))return "number";
+ stream.next();return null;
+}};});})();
 /* Offline HTML/CSS tokenizers for the bundled CodeMirror 5 editor. */
 (function(){
   if (!window.CodeMirror) return;
@@ -330,6 +344,7 @@
   <div class="coding-language-tabs" role="tablist" aria-label="Coding language">
     <button class="coding-language-tab active" id="lang-html" onclick="selectCodingLanguage('html')">HTML</button>
     <button class="coding-language-tab" id="lang-css" onclick="selectCodingLanguage('css')">CSS</button>
+    <button class="coding-language-tab" id="lang-js" onclick="selectCodingLanguage('javascript')">JavaScript</button>
   </div>
   <div id="script-editor"><textarea id="script-code" placeholder="Write Python code here..."></textarea></div>
   <div id="web-editor" style="display:none"><textarea id="web-code"></textarea></div>
@@ -488,7 +503,7 @@
     }
 
     function changeCellLanguage(id, language) {
-        if (!["python", "html", "css"].includes(language)) language = "python";
+        if (!["python", "html", "css", "javascript"].includes(language)) language = "python";
         const cell = document.getElementById(`cell-${id}`);
         if (!cell || !editors[id]) return;
         cell.dataset.language = language;
@@ -687,7 +702,7 @@
         const input = document.getElementById('file-input');
         const workspace = currentWorkspace;
         input.dataset.openWorkspace = workspace;
-        input.accept = workspace === 'python' ? '.py,text/x-python,text/plain' : (workspace === 'web' ? '.html,.htm,.css,text/html,text/css,text/plain' : '.ipynb,.json,application/json,application/x-ipynb+json,text/plain');
+        input.accept = workspace === 'python' ? '.py,text/x-python,text/plain' : (workspace === 'web' ? '.html,.htm,.css,.js,.mjs,text/html,text/css,text/javascript,text/plain' : '.ipynb,.json,application/json,application/x-ipynb+json,text/plain');
         input.value = '';
         input.click();
     }
@@ -730,6 +745,10 @@
                 extension = '.css'; mime = 'text/css';
                 content = webEditor ? webEditor.getValue() : savedCssCode;
                 defaultName = defaultName || 'style.css';
+            } else if (codingLanguage === 'javascript') {
+                extension = '.js'; mime = 'text/javascript';
+                content = webEditor ? webEditor.getValue() : savedJsCode;
+                defaultName = defaultName || 'script.js';
             } else {
                 extension = '.html'; mime = 'text/html';
                 content = webEditor ? webEditor.getValue() : savedHtmlCode;
@@ -806,6 +825,10 @@
                     selectWorkspace('web'); selectCodingLanguage('css');
                     savedCssCode = text;
                     if (webEditor) webEditor.setValue(text);
+                } else if (ext === 'js' || ext === 'mjs') {
+                    selectWorkspace('web'); selectCodingLanguage('javascript');
+                    savedJsCode = text;
+                    if (webEditor) webEditor.setValue(text);
                 } else {
                     const parsed = JSON.parse(text);
                     let cellsToLoad;
@@ -853,20 +876,23 @@
     let codingLanguage = "python";
     let webEditor = null;
     let savedHtmlCode = "";
-    let savedCssCode = "";
+    let savedCssCode = "";\n    let savedJsCode = "";
 
     function selectCodingLanguage(language) {
-        if (!["python", "html", "css"].includes(language)) language = "python";
+        if (!["python", "html", "css", "javascript"].includes(language)) language = "python";
         if (codingLanguage === "html" && webEditor) savedHtmlCode = webEditor.getValue();
         if (codingLanguage === "css" && webEditor) savedCssCode = webEditor.getValue();
+        if (codingLanguage === "javascript" && webEditor) savedJsCode = webEditor.getValue();
         codingLanguage = language;
         const htmlTab = document.getElementById("lang-html");
         const cssTab = document.getElementById("lang-css");
+        const jsTab = document.getElementById("lang-js");
         if (htmlTab) htmlTab.classList.toggle("active", language === "html");
         if (cssTab) cssTab.classList.toggle("active", language === "css");
+        if (jsTab) jsTab.classList.toggle("active", language === "javascript");
         document.getElementById("script-editor").style.display = language === "python" ? "block" : "none";
         document.getElementById("web-editor").style.display = language === "python" ? "none" : "block";
-        document.getElementById("top-run-btn").title = language === "python" ? "Run Python code" : (language === "html" ? "Preview HTML with CSS" : "Preview HTML with CSS");
+        document.getElementById("top-run-btn").title = language === "python" ? "Run Python code" : "Preview HTML, CSS and JavaScript";
         if (language !== "python" && !webEditor) {
             webEditor = CodeMirror.fromTextArea(document.getElementById("web-code"), {
                 mode: "text/html", theme: document.body.classList.contains("night-mode") ? "material-darker" : "neo",
@@ -893,8 +919,12 @@
         document.body.classList.add("terminal-open");
         document.getElementById("console-output").textContent = "";
         document.getElementById("console-input-row").style.display = "none";
+        if (codingLanguage === "html" && webEditor) savedHtmlCode = webEditor.getValue();
+        if (codingLanguage === "css" && webEditor) savedCssCode = webEditor.getValue();
+        if (codingLanguage === "javascript" && webEditor) savedJsCode = webEditor.getValue();
         const html = savedHtmlCode;
         const css = savedCssCode;
+        const js = savedJsCode;
         const style = `<style>
           html { touch-action: pan-y; box-sizing:border-box; min-height:100%; overflow-x:hidden; overflow-y:auto; }
           body { touch-action: pan-y; box-sizing:border-box; min-height:100%; margin:8px; overflow-x:hidden; overflow-y:auto; overflow-wrap:anywhere; -webkit-overflow-scrolling:touch; }
@@ -908,6 +938,9 @@
         } else {
             rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">${style}</head><body>${html}</body></html>`;
         }
+        const jsTag = '<scr' + 'ipt>' + js + '\\n</scr' + 'ipt>';
+        if (/<\\/body\\s*>/i.test(rendered)) rendered = rendered.replace(/<\\/body\\s*>/i, jsTag + '</body>');
+        else rendered += jsTag;
         document.getElementById("coding-web-preview").srcdoc = rendered;
         window.scrollTo(0, 0);
     }
@@ -990,6 +1023,7 @@
         document.getElementById("coding-output-page").classList.remove("web-output");
         if (codingLanguage === "html" && webEditor) savedHtmlCode = webEditor.getValue();
         if (codingLanguage === "css" && webEditor) savedCssCode = webEditor.getValue();
+        if (codingLanguage === "javascript" && webEditor) savedJsCode = webEditor.getValue();
         document.body.classList.remove("terminal-open");
         document.getElementById("coding-page").style.display = "block";
         if (codingLanguage === 'python' && scriptEditor) lastFocusedEditor = scriptEditor;

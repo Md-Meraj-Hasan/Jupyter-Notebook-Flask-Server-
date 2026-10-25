@@ -1,0 +1,1 @@
+document.getElementById('helloBtn')?.addEventListener('click', () => alert('HTML, CSS and JavaScript are connected!'));\n

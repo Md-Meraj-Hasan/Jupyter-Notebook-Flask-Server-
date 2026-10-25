@@ -14,10 +14,6 @@ matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans']
 import matplotlib.pyplot as plt
 import seaborn as sns
 import base64
-import sqlite3
-import threading
-from pathlib import Path
-from flask import send_from_directory
 plt.show = lambda *args, **kwargs: None
 
 app = Flask(__name__)
@@ -86,96 +82,38 @@ def run_code():
 
     return jsonify({"output": output, "html": html_output, "final_val": final_val})
 
-
-# --- Additional independent workspaces (kept separate from the original notebook) ---
-PROJECT_ROOT = Path(__file__).resolve().parent
-SQLITE_DIR = PROJECT_ROOT / "sqlite3_page"
-SQLITE_DB_DIR = SQLITE_DIR / "databases"
-SQLITE_DB_DIR.mkdir(parents=True, exist_ok=True)
-SQLITE_DEFAULT_DB = SQLITE_DB_DIR / "nicecoding.sqlite3"
-SQLITE_LOCK = threading.RLock()
-if not SQLITE_DEFAULT_DB.exists():
-    with sqlite3.connect(str(SQLITE_DEFAULT_DB)) as _conn:
-        _conn.execute("PRAGMA user_version=1")
-
-@app.route("/sqlite3")
-def sqlite3_notebook_page():
-    return render_template("sqlite3/index.html")
-
-@app.route("/sqlite3/assets/<path:asset>")
-def sqlite3_assets(asset):
-    return send_from_directory(str(SQLITE_DIR / "static"), asset)
-
-@app.route("/webdev")
-def webdev_page():
-    return render_template("webdev/index.html")
-
-@app.route("/sqlite3/run", methods=["POST"])
-def sqlite3_run():
-    payload = request.get_json(silent=True) or {}
-    query = str(payload.get("code", "")).strip()
-    if not query:
-        return jsonify({"output": "Empty query", "columns": [], "rows": []})
-    # Each SQL workspace has its own database folder and current-db marker.
-    selected_file = SQLITE_DB_DIR / "_current_database.txt"
-    try:
-        selected = selected_file.read_text(encoding="utf-8").strip() if selected_file.exists() else SQLITE_DEFAULT_DB.name
-    except Exception:
-        selected = SQLITE_DEFAULT_DB.name
-    if not selected or Path(selected).name != selected or not selected.lower().endswith((".db", ".sqlite", ".sqlite3")):
-        selected = SQLITE_DEFAULT_DB.name
-    db_path = SQLITE_DB_DIR / selected
-    lower = query.lower().strip().rstrip(";")
-    with SQLITE_LOCK:
-        try:
-            if lower == "show databases":
-                files = sorted(f.name for f in SQLITE_DB_DIR.iterdir() if f.is_file() and f.suffix.lower() in (".db", ".sqlite", ".sqlite3"))
-                return jsonify({"output": f"{len(files)} database(s) found", "columns": ["Database Name"], "rows": [{"Database Name": x} for x in files]})
-            if lower.startswith("use "):
-                name = query.split(None, 1)[1].strip().strip("`\"'")
-                if not name.lower().endswith((".db", ".sqlite", ".sqlite3")):
-                    name += ".db"
-                if Path(name).name != name or name in (".", ".."):
-                    return jsonify({"output": "Invalid database filename", "columns": [], "rows": []})
-                target = SQLITE_DB_DIR / name
-                with sqlite3.connect(str(target)) as _c:
-                    _c.execute("PRAGMA user_version=1")
-                selected_file.write_text(name, encoding="utf-8")
-                return jsonify({"output": f"Switched to {name}", "columns": [], "rows": []})
-            conn = sqlite3.connect(str(db_path), timeout=10)
-            conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA busy_timeout=5000")
-            cur = conn.cursor()
-            if lower == "show tables":
-                cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-                rows = [dict(r) for r in cur.fetchall()]
-                conn.close()
-                return jsonify({"output": f"{len(rows)} table(s) found" if rows else "No Tables Found", "columns": ["name"], "rows": rows})
-            if lower.startswith("describe ") or lower.startswith("desc "):
-                table = query.split(None, 1)[1].strip().strip('`"')
-                if not table.replace("_", "").isalnum():
-                    conn.close(); return jsonify({"output": "Invalid table name", "columns": [], "rows": []})
-                cur.execute(f"PRAGMA table_info('{table}')")
-                rows = [dict(r) for r in cur.fetchall()]
-                conn.close()
-                return jsonify({"output": f"{len(rows)} column(s)", "columns": list(rows[0].keys()) if rows else [], "rows": rows})
-            cur.execute(query)
-            if cur.description:
-                columns = [d[0] for d in cur.description]
-                rows = [dict(r) for r in cur.fetchall()]
-                conn.commit()
-                conn.close()
-                return jsonify({"output": f"{len(rows)} row(s) returned", "columns": columns, "rows": rows})
-            affected = cur.rowcount
-            conn.commit()
-            conn.close()
-            return jsonify({"output": f"Query executed successfully. Rows affected: {affected}", "columns": [], "rows": []})
-        except Exception as exc:
-            try: conn.close()
-            except Exception: pass
-            return jsonify({"output": f"SQLite error: {exc}", "columns": [], "rows": []}), 400
-
 if __name__ == "__main__":
     print("\nhttp://127.0.0.1:8000\n")
     serve(app, host="127.0.0.1", port=8000, threads=8)
 
+
+
+# HTML/CSS/JavaScript editor workspace: saved files share one folder.
+from pathlib import Path as _Path
+_WEB_WORKSPACE = _Path(__file__).resolve().parent / "web_workspace"
+_WEB_WORKSPACE.mkdir(parents=True, exist_ok=True)
+_WEB_DEFAULTS = {
+ "index.html": "<!doctype html>\\n<html>\\n<head><meta charset=\\\"utf-8\\\"><title>My page</title></head>\\n<body><h1>Hello, world!</h1><button id=\\\"helloBtn\\\">Click me</button></body>\\n</html>\\n",
+ "style.css": "body { font-family: Arial, sans-serif; padding: 24px; }\\nh1 { color: #2878d0; }\\n",
+ "script.js": "document.getElementById('helloBtn')?.addEventListener('click', () => alert('HTML, CSS and JavaScript are connected!'));\\n"
+}
+@app.route("/web-editor")
+def web_editor_page():
+ return render_template("web_editor.html")
+@app.route("/api/web-files", methods=["GET","POST"])
+def web_files_api():
+ if request.method == "GET":
+  values={}
+  for key,fn in (("html","index.html"),("css","style.css"),("js","script.js")):
+   p=_WEB_WORKSPACE/fn
+   if not p.exists(): p.write_text(_WEB_DEFAULTS[fn],encoding="utf-8")
+   values[key]=p.read_text(encoding="utf-8")
+  return jsonify({"ok":True,**values})
+ try:
+  data=request.get_json(silent=True) or {}
+  for key,fn in (("html","index.html"),("css","style.css"),("js","script.js")):
+   val=data.get(key,"")
+   if not isinstance(val,str): return jsonify({"ok":False,"error":"Invalid content"}),400
+   (_WEB_WORKSPACE/fn).write_text(val,encoding="utf-8")
+  return jsonify({"ok":True})
+ except Exception as exc: return jsonify({"ok":False,"error":str(exc)}),500

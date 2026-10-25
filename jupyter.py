@@ -84,7 +84,7 @@ def run_code():
     return jsonify({"output": output, "html": html_output, "final_val": final_val})
 
 
-# Persistent SQLite SQL workspace. Each SQL cell submits one direct SQL statement.
+# Persistent SQLite SQL workspace. Multiple statements are supported per cell.
 import sqlite3 as _sqlite3
 import html as _html_escape
 _SQLITE_DB_LOCK = threading.RLock() if "threading" in globals() else __import__("threading").RLock()
@@ -108,41 +108,88 @@ def _nicecoding_sqlite_db_path():
             continue
     raise OSError("Cannot create a writable SQLite database folder")
 
+def _split_sql_statements(script):
+    """Split SQL at semicolons outside strings, quoted identifiers and comments."""
+    statements, start, i = [], 0, 0
+    quote = None
+    line_comment = False
+    block_comment = False
+    n = len(script)
+    while i < n:
+        ch = script[i]
+        nxt = script[i + 1] if i + 1 < n else ""
+        if line_comment:
+            if ch in "\r\n": line_comment = False
+            i += 1; continue
+        if block_comment:
+            if ch == "*" and nxt == "/": block_comment = False; i += 2; continue
+            i += 1; continue
+        if quote:
+            if quote == "]":
+                if ch == "]": quote = None
+            elif ch == quote:
+                # SQL escapes quote characters by doubling them ('' or "").
+                if nxt == quote: i += 2; continue
+                quote = None
+            i += 1; continue
+        if ch == "-" and nxt == "-": line_comment = True; i += 2; continue
+        if ch == "/" and nxt == "*": block_comment = True; i += 2; continue
+        if ch in ("'", '"', "`", "["):
+            quote = "]" if ch == "[" else ch
+            i += 1; continue
+        if ch == ";":
+            part = script[start:i + 1].strip()
+            if part and part != ";": statements.append(part)
+            start = i + 1
+        i += 1
+    tail = script[start:].strip()
+    if tail and tail != ";": statements.append(tail)
+    return statements
+
+def _sql_result_table(columns, rows):
+    parts = ['<div style="overflow:auto;max-width:100%"><table class="dataframe" border="0"><thead><tr>']
+    parts.extend('<th>' + _html_escape.escape(str(col)) + '</th>' for col in columns)
+    parts.append('</tr></thead><tbody>')
+    for row in rows:
+        parts.append('<tr>')
+        parts.extend('<td>' + _html_escape.escape("NULL" if value is None else str(value)) + '</td>' for value in row)
+        parts.append('</tr>')
+    parts.append('</tbody></table></div>')
+    return ''.join(parts)
+
 @app.route("/run-sql", methods=["POST"])
 def run_sql_query():
     payload = request.get_json(silent=True) or {}
     sql = str(payload.get("code", "")).strip()
     if not sql:
         return jsonify({"ok": True, "output": "", "html": "", "final_val": ""})
+    statements = _split_sql_statements(sql)
+    if not statements:
+        return jsonify({"ok": True, "output": "No SQL statement to execute.", "html": "", "final_val": ""})
     db_path = _nicecoding_sqlite_db_path()
     try:
+        messages, html_parts = [], []
         with _SQLITE_DB_LOCK:
             with _sqlite3.connect(str(db_path), timeout=15) as connection:
                 connection.row_factory = _sqlite3.Row
-                # sqlite3.execute deliberately accepts one statement per Jupyter cell.
-                cursor = connection.execute(sql)
-                if cursor.description:
-                    columns = [item[0] for item in cursor.description]
-                    rows = cursor.fetchall()
-                    parts = ['<div style="overflow:auto;max-width:100%"><table class="dataframe" border="0"><thead><tr>']
-                    parts.extend('<th>' + _html_escape.escape(str(col)) + '</th>' for col in columns)
-                    parts.append('</tr></thead><tbody>')
-                    for row in rows:
-                        parts.append('<tr>')
-                        parts.extend('<td>' + _html_escape.escape("NULL" if value is None else str(value)) + '</td>' for value in row)
-                        parts.append('</tr>')
-                    parts.append('</tbody></table></div>')
-                    html_result = ''.join(parts)
-                    message = f"{len(rows)} row(s) returned · SQLite database: {db_path.name}"
-                else:
-                    html_result = ""
-                    if sql.lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE", "REPLACE")):
-                        message = f"Query OK · {max(cursor.rowcount, 0)} row(s) affected"
+                for index, statement in enumerate(statements, start=1):
+                    cursor = connection.execute(statement)
+                    if cursor.description:
+                        columns = [item[0] for item in cursor.description]
+                        rows = cursor.fetchall()
+                        messages.append(f"Statement {index}: {len(rows)} row(s) returned")
+                        html_parts.append(f'<div style="margin:8px 0"><div style="font-weight:600;margin-bottom:5px">Result {index}</div>{_sql_result_table(columns, rows)}</div>')
                     else:
-                        message = "Query OK · statement executed"
-                    if cursor.lastrowid:
-                        message += f" · last inserted row ID: {cursor.lastrowid}"
-        return jsonify({"ok": True, "output": message, "html": html_result, "final_val": ""})
+                        affected = max(cursor.rowcount, 0)
+                        kind = statement.lstrip().split(None, 1)[0].upper().rstrip(";") if statement.strip() else "SQL"
+                        if kind in ("INSERT", "UPDATE", "DELETE", "REPLACE"):
+                            msg = f"Statement {index}: Query OK · {affected} row(s) affected"
+                            if cursor.lastrowid: msg += f" · last inserted row ID: {cursor.lastrowid}"
+                        else:
+                            msg = f"Statement {index}: Query OK · statement executed"
+                        messages.append(msg)
+        messages.append(f"Executed {len(statements)} SQL statement(s) · SQLite database: {db_path.name}")
+        return jsonify({"ok": True, "output": "\n".join(messages), "html": "".join(html_parts), "final_val": ""})
     except Exception as exc:
         return jsonify({"ok": False, "output": "SQLite error: " + str(exc), "html": "", "final_val": ""})
 

@@ -310,6 +310,29 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         /* Keep the fixed menu visible while notebook cells scroll. */
         body:not(.terminal-open) #notebook { scroll-margin-top:48px; }
 
+        /* v1.1.1: SQL result output gets its own vertical scroll so long tables stay usable on mobile */
+        #sqlite-notebook .output-container {
+            max-height: 58vh !important;
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            touch-action: pan-x pan-y;
+            scrollbar-width: auto;
+        }
+        #sqlite-notebook .output-container table {
+            min-width: 100%;
+            width: max-content;
+            border-collapse: collapse;
+        }
+        #sqlite-notebook .output-container th,
+        #sqlite-notebook .output-container td {
+            white-space: nowrap;
+        }
+        #sqlite-notebook .output-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
 </style>
 <script>
 (function(){if(!window.CodeMirror)return;CodeMirror.defineMode("sql",function(){var keywords=/^(SELECT|FROM|WHERE|AND|OR|NOT|NULL|IS|IN|LIKE|GLOB|BETWEEN|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|DISTINCT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|IF|EXISTS|DROP|ALTER|ADD|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|INDEX|VIEW|TRIGGER|DATABASE|PRAGMA|BEGIN|COMMIT|ROLLBACK|TRANSACTION|AUTOINCREMENT|DEFAULT|CHECK|CASE|WHEN|THEN|ELSE|END|UNION|ALL|COUNT|SUM|AVG|MIN|MAX|ASC|DESC|WITH)\b/i;return {token:function(stream){if(stream.eatSpace())return null;if(stream.match(/--.*/))return "comment";if(stream.match(/\/\*[\s\S]*?\*\//))return "comment";if(stream.match(/'(?:''|[^'])*'/))return "string";if(stream.match(/"(?:""|[^"])*"/))return "string";if(stream.match(/`[^`]*`/))return "string";if(stream.match(/\b\d+(?:\.\d+)?\b/))return "number";if(stream.match(keywords))return "keyword";if(stream.match(/[(),.;*+\/-]/))return "operator";stream.next();return null;}};});})();

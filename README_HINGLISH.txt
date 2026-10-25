@@ -27,4 +27,4 @@ IMPORTANT:
 Yeh Tkinter Python file ka direct one-click conversion nahi hai. Android ke liye HTML/CSS/JavaScript interface aur game logic port ki gayi hai. APK build karne ke liye GitHub Actions internet use karega. App ka game offline chalega.
 
 LATEST UPDATE: Table tray now displays each player’s latest discarded card (YOU and CPU players). WASTE remains the action to discard the selected card. The bottom action grid spans the full available width.
-\nSQLITE3 WORKSPACE: Notebook dropdown now includes SQLite3 / SQL. It uses the same Jupyter-style cells and controls; each cell runs direct SQL against a persistent local SQLite database. One SQL statement per cell. Database path: NiceCoding/SQLite/nicecoding.sqlite3 (app-private storage where available).\n
+\nSQLITE3 WORKSPACE: Notebook dropdown now includes SQLite3 / SQL. It uses the same Jupyter-style cells and controls; each cell can run multiple SQL statements against a persistent local SQLite database; SELECT results are displayed as tables. Database path: NiceCoding/SQLite/nicecoding.sqlite3 (app-private storage where available).\n

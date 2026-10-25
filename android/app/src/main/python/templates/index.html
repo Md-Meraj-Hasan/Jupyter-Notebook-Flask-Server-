@@ -311,6 +311,9 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         body:not(.terminal-open) #notebook { scroll-margin-top:48px; }
 
 </style>
+<script>
+(function(){if(!window.CodeMirror)return;CodeMirror.defineMode("sql",function(){var keywords=/^(SELECT|FROM|WHERE|AND|OR|NOT|NULL|IS|IN|LIKE|GLOB|BETWEEN|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|DISTINCT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|IF|EXISTS|DROP|ALTER|ADD|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|INDEX|VIEW|TRIGGER|DATABASE|PRAGMA|BEGIN|COMMIT|ROLLBACK|TRANSACTION|AUTOINCREMENT|DEFAULT|CHECK|CASE|WHEN|THEN|ELSE|END|UNION|ALL|COUNT|SUM|AVG|MIN|MAX|ASC|DESC|WITH)\b/i;return {token:function(stream){if(stream.eatSpace())return null;if(stream.match(/--.*/))return "comment";if(stream.match(/\/\*[\s\S]*?\*\//))return "comment";if(stream.match(/'(?:''|[^'])*'/))return "string";if(stream.match(/"(?:""|[^"])*"/))return "string";if(stream.match(/`[^`]*`/))return "string";if(stream.match(/\b\d+(?:\.\d+)?\b/))return "number";if(stream.match(keywords))return "keyword";if(stream.match(/[(),.;*+\/-]/))return "operator";stream.next();return null;}};});})();
+</script>
 </head>
 <body>
 
@@ -332,6 +335,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         <div onclick="selectWorkspace('notebook')">📒 Notebook</div>
         <div onclick="selectWorkspace('python')">🐍 Python</div>
         <div onclick="selectWorkspace('web')">🌐 HTML, CSS &amp; JavaScript</div>
+        <div onclick="selectWorkspace('sqlite')">🗄️ SQLite3 / SQL</div>
       </div>
     </div>
     <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶ Run</button>
@@ -339,6 +343,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 </div>
 
 <div class="container" id="notebook"></div>
+<div class="container" id="sqlite-notebook" style="display:none"></div>
 <button class="fab-add" id="fab-btn" onclick="addNewCell()" title="Add Cell">+</button>
 <div id="coding-page">
   <div class="coding-language-tabs" role="tablist" aria-label="Coding language">
@@ -470,10 +475,11 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         window.visualViewport.addEventListener('scroll', syncToolbar);
     }
 
-    function addNewCell(content = "", language = "python") {
+    function addNewCell(content = "", language = null) {
         cellCount++;
         const id = cellCount;
-        const safeLanguage = ["python", "html", "css"].includes(language) ? language : "python";
+        const requestedLanguage = language || (currentWorkspace === "sqlite" ? "sql" : "python");
+        const safeLanguage = ["python", "html", "css", "javascript", "sql"].includes(requestedLanguage) ? requestedLanguage : "python";
         const html = `
             <div class="cell" id="cell-${id}" data-language="${safeLanguage}">
                 <div class="toolbar">
@@ -490,11 +496,12 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                     <div id="output-${id}" class="output-area"></div>
                 </div>
             </div>`;
-        document.getElementById('notebook').insertAdjacentHTML('beforeend', html);
+        const targetNotebook = safeLanguage === "sql" ? document.getElementById('sqlite-notebook') : document.getElementById('notebook');
+        targetNotebook.insertAdjacentHTML('beforeend', html);
         const textarea = document.getElementById(`code-${id}`);
         textarea.value = content;
         const editor = CodeMirror.fromTextArea(textarea, {
-            mode: safeLanguage === "python" ? "python" : (safeLanguage === "html" ? "text/html" : "css"),
+            mode: safeLanguage === "python" ? "python" : (safeLanguage === "html" ? "text/html" : (safeLanguage === "javascript" ? "javascript" : (safeLanguage === "sql" ? "sql" : "css"))),
             theme: document.body.classList.contains('night-mode') ? "material-darker" : "neo",
             lineNumbers: true, indentUnit: 4, matchBrackets: true, viewportMargin: Infinity
         });
@@ -503,18 +510,18 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     }
 
     function changeCellLanguage(id, language) {
-        if (!["python", "html", "css", "javascript"].includes(language)) language = "python";
+        if (!["python", "html", "css", "javascript", "sql"].includes(language)) language = "python";
         const cell = document.getElementById(`cell-${id}`);
         if (!cell || !editors[id]) return;
         cell.dataset.language = language;
-        editors[id].setOption("mode", language === "python" ? "python" : (language === "html" ? "text/html" : "css"));
+        editors[id].setOption("mode", language === "python" ? "python" : (language === "html" ? "text/html" : (language === "javascript" ? "javascript" : (language === "sql" ? "sql" : "css"))));
         const out = document.getElementById(`output-${id}`);
         if (out && out.querySelector("iframe")) out.innerHTML = "";
     }
 
     function getCellLanguage(id) {
         const cell = document.getElementById(`cell-${id}`);
-        return cell && ["python", "html", "css"].includes(cell.dataset.language) ? cell.dataset.language : "python";
+        return cell && ["python", "html", "css", "javascript", "sql"].includes(cell.dataset.language) ? cell.dataset.language : "python";
     }
 
     function escapePreviewText(value) {
@@ -569,6 +576,19 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         const container = document.getElementById(`out-cont-${id}`);
         container.style.display = "block";
         outputDiv.innerHTML = "";
+
+        if (language === "sql" || currentWorkspace === "sqlite") {
+            outputDiv.textContent = "Executing SQL…";
+            try {
+                const response = await fetch('/run-sql', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})});
+                const data = await response.json();
+                let resultHtml = "";
+                if (data.output) resultHtml += `<pre style="margin:0 0 8px;white-space:pre-wrap">${escapePreviewText(data.output)}</pre>`;
+                if (data.html) resultHtml += data.html;
+                outputDiv.innerHTML = resultHtml || "<span style='color:gray;'>SQL executed</span>";
+            } catch (err) { outputDiv.textContent = "SQLite connection error: " + err; }
+            return;
+        }
 
         if (language === "html") {
             renderWebPreview(id, code, combinedCss(), "HTML Preview · CSS cells are applied");
@@ -633,7 +653,9 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             const dataUrl = canvas.toDataURL("image/png");
             const base64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
             if (window.AndroidDownloads && typeof window.AndroidDownloads.saveBase64File === "function") {
-                window.AndroidDownloads.saveBase64File(`cell-${id}-analysis.png`, "image/png", base64, false, `image:${id}`);
+                const isSqlOutput = !!(outputElement.closest('#sqlite-notebook'));
+                const saveKey = isSqlOutput ? `sql:image:${id}` : `image:${id}`;
+                window.AndroidDownloads.saveBase64File(`cell-${id}-analysis.png`, "image/png", base64, false, saveKey);
             } else {
                 const link = document.createElement("a");
                 link.download = `cell-${id}-analysis.png`;
@@ -685,6 +707,14 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             currentFileName = '';
             return;
         }
+        if (currentWorkspace === 'sqlite') {
+            const box = document.getElementById('sqlite-notebook');
+            Object.keys(editors).forEach(key => { const cell = document.getElementById(`cell-${key}`); if (cell && cell.parentElement === box) delete editors[key]; });
+            box.innerHTML = '';
+            currentFileName = '';
+            addNewCell('', 'sql');
+            return;
+        }
         if (currentWorkspace === 'web') {
             savedHtmlCode = '';
             savedCssCode = '';
@@ -693,16 +723,17 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             currentFileName = '';
             return;
         }
-        document.getElementById('notebook').innerHTML = '';
-        cellCount = 0; editors = {}; currentFileName = '';
-        addNewCell();
+        const notebookBox = document.getElementById('notebook');
+        Object.keys(editors).forEach(key => { const cell = document.getElementById(`cell-${key}`); if (cell && cell.parentElement === notebookBox) delete editors[key]; });
+        notebookBox.innerHTML = ''; currentFileName = '';
+        addNewCell('', 'python');
     }
 
     function openCurrentFile() {
         const input = document.getElementById('file-input');
         const workspace = currentWorkspace;
         input.dataset.openWorkspace = workspace;
-        input.accept = workspace === 'python' ? '.py,text/x-python,text/plain' : (workspace === 'web' ? '.html,.htm,.css,.js,.mjs,text/html,text/css,text/javascript,text/plain' : '.ipynb,.json,application/json,application/x-ipynb+json,text/plain');
+        input.accept = workspace === 'python' ? '.py,text/x-python,text/plain' : (workspace === 'web' ? '.html,.htm,.css,.js,.mjs,text/html,text/css,text/javascript,text/plain' : (workspace === 'sqlite' ? '.sql,text/plain' : '.ipynb,.json,application/json,application/x-ipynb+json,text/plain'));
         input.value = '';
         input.click();
     }
@@ -754,8 +785,14 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                 content = webEditor ? webEditor.getValue() : savedHtmlCode;
                 defaultName = defaultName || 'index.html';
             }
+        } else if (currentWorkspace === 'sqlite') {
+            extension = '.sql'; mime = 'text/plain';
+            content = Object.keys(editors).map(Number).sort((a,b)=>a-b)
+                .filter(id => { const cell = document.getElementById(`cell-${id}`); return cell && cell.parentElement && cell.parentElement.id === 'sqlite-notebook'; })
+                .map(id => editors[id].getValue().trim()).filter(Boolean).join(';\n\n') + ';\n';
+            defaultName = defaultName || 'queries.sql';
         } else {
-            const cells = Object.entries(editors).map(([idText, ed]) => ({
+            const cells = Object.entries(editors).filter(([idText]) => { const cell = document.getElementById(`cell-${idText}`); return cell && cell.parentElement && cell.parentElement.id === 'notebook'; }).map(([idText, ed]) => ({
                 cell_type: 'code', execution_count: null,
                 metadata: {custom_language: getCellLanguage(Number(idText))}, outputs: [],
                 source: ed.getValue().split('\n').map((line, i, all) => i < all.length - 1 ? line + '\n' : line)
@@ -768,7 +805,8 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         const activeDefaultName = defaultName && defaultName.toLowerCase().endsWith(extension)
             ? defaultName : (currentWorkspace === 'notebook' ? 'notebook.ipynb'
                 : currentWorkspace === 'python' ? 'script.py'
-                : (codingLanguage === 'css' ? 'style.css' : 'index.html'));
+                : currentWorkspace === 'sqlite' ? 'queries.sql'
+                : (codingLanguage === 'css' ? 'style.css' : (codingLanguage === 'javascript' ? 'script.js' : 'index.html')));
         let filename = (currentFileName && currentFileName.toLowerCase().endsWith(extension))
             ? currentFileName : activeDefaultName;
         if (saveAs || !currentFileName || !currentFileName.toLowerCase().endsWith(extension)) {
@@ -778,7 +816,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             filename = filename.trim();
             if (!filename) return;
             // Ensure mode-specific extension; replace a conflicting extension rather than append twice.
-            filename = filename.replace(/\.(ipynb|json|py|html?|css)$/i, '');
+            filename = filename.replace(/\.(ipynb|json|py|html?|css|js|mjs|sql)$/i, '');
             filename += extension;
         } else if (!filename.toLowerCase().endsWith(extension)) {
             filename = filename.replace(/\.[^.]+$/, '') + extension;
@@ -808,7 +846,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             const text = String(e.target.result || '');
             try {
                 if (window.AndroidDownloads && typeof window.AndroidDownloads.importTextFile === 'function') {
-                    const activeWs = ext === 'py' ? 'python' : (['html','htm','css'].includes(ext) ? 'web' : 'notebook');
+                    const activeWs = ext === 'py' ? 'python' : (['html','htm','css','js','mjs'].includes(ext) ? 'web' : (ext === 'sql' ? 'sqlite' : 'notebook'));
                     const b64 = btoa(unescape(encodeURIComponent(text)));
                     window.AndroidDownloads.importTextFile(name, 'text/plain', b64, activeWs);
                 }
@@ -831,6 +869,13 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                     selectWorkspace('web'); selectCodingLanguage('javascript');
                     savedJsCode = text;
                     if (webEditor) webEditor.setValue(text);
+                } else if (ext === 'sql') {
+                    selectWorkspace('sqlite');
+                    const box = document.getElementById('sqlite-notebook');
+                    Object.keys(editors).forEach(key => { const cell = document.getElementById(`cell-${key}`); if (cell && cell.parentElement === box) delete editors[key]; });
+                    box.innerHTML = '';
+                    const statements = text.split(/;\s*(?:\r?\n|$)/).map(q => q.trim()).filter(Boolean);
+                    (statements.length ? statements : [text]).forEach(q => addNewCell(q, 'sql'));
                 } else {
                     const parsed = JSON.parse(text);
                     let cellsToLoad;
@@ -840,7 +885,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                         // Accept standard Jupyter .ipynb cells as well as this app's JSON notebook.
                         cellsToLoad = parsed.cells.filter(c => c && (!c.cell_type || c.cell_type === 'code')).map(cell => ({
                             source: Array.isArray(cell.source) ? cell.source.join('') : (typeof cell.source === 'string' ? cell.source : ''),
-                            language: cell.metadata && ['python','html','css'].includes(cell.metadata.custom_language) ? cell.metadata.custom_language : 'python'
+                            language: cell.metadata && ['python','html','css','javascript','sql'].includes(cell.metadata.custom_language) ? cell.metadata.custom_language : 'python'
                         }));
                     } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.worksheets)) {
                         // Legacy notebook JSON shape: accept cell-like source entries when present.
@@ -960,20 +1005,21 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     });
 
     function selectWorkspace(workspace) {
-        if (!['notebook','python','web'].includes(workspace)) workspace = 'notebook';
+        if (!['notebook','python','web','sqlite'].includes(workspace)) workspace = 'notebook';
         currentWorkspace = workspace;
-        currentMode = workspace === 'notebook' ? 'notebook' : 'coding';
+        currentMode = (workspace === 'notebook' || workspace === 'sqlite') ? workspace : 'coding';
         if (window.AndroidDownloads && typeof window.AndroidDownloads.setActiveWorkspace === 'function') window.AndroidDownloads.setActiveWorkspace(workspace);
         document.getElementById('mode-menu').style.display = 'none';
         document.getElementById('notebook').style.display = workspace === 'notebook' ? 'flex' : 'none';
-        document.getElementById('fab-btn').style.display = workspace === 'notebook' ? 'block' : 'none';
-        document.getElementById('coding-page').style.display = workspace === 'notebook' ? 'none' : 'block';
+        document.getElementById('sqlite-notebook').style.display = workspace === 'sqlite' ? 'flex' : 'none';
+        document.getElementById('fab-btn').style.display = (workspace === 'notebook' || workspace === 'sqlite') ? 'block' : 'none';
+        document.getElementById('coding-page').style.display = (workspace === 'python' || workspace === 'web') ? 'block' : 'none';
         const languageTabs = document.querySelector('.coding-language-tabs');
         if (languageTabs) languageTabs.style.display = workspace === 'web' ? 'flex' : 'none';
         document.getElementById('coding-output-page').style.display = 'none';
         document.body.classList.remove('terminal-open');
-        document.getElementById('mode-switch').textContent = workspace === 'notebook' ? '📒 Notebook ▾' : (workspace === 'python' ? '🐍 Python ▾' : '🌐 HTML/CSS/JS ▾');
-        document.getElementById('top-run-btn').style.display = workspace === 'notebook' ? 'none' : 'inline-flex';
+        document.getElementById('mode-switch').textContent = workspace === 'notebook' ? '📒 Notebook ▾' : (workspace === 'python' ? '🐍 Python ▾' : (workspace === 'web' ? '🌐 HTML/CSS/JS ▾' : '🗄️ SQLite3 ▾'));
+        document.getElementById('top-run-btn').style.display = (workspace === 'python' || workspace === 'web') ? 'inline-flex' : 'none';
         if (!scriptEditor) {
             scriptEditor = CodeMirror.fromTextArea(document.getElementById('script-code'), {
                 mode:'python', theme:document.body.classList.contains('night-mode') ? 'material-darker' : 'neo',
@@ -999,10 +1045,15 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             codingLanguage = 'python';
             document.getElementById('script-editor').style.display = 'block';
             document.getElementById('web-editor').style.display = 'none';
+        } else if (workspace === 'sqlite') {
+            if (document.getElementById('sqlite-notebook').children.length === 0) addNewCell('SELECT sqlite_version();', 'sql');
+            const firstSqlCell = document.querySelector('#sqlite-notebook .CodeMirror');
+            if (firstSqlCell) firstSqlCell.CodeMirror && firstSqlCell.CodeMirror.refresh();
         }
         if (scriptEditor) setTimeout(() => scriptEditor.refresh(), 80);
         if (webEditor) setTimeout(() => webEditor.refresh(), 80);
         window.scrollTo(0,0);
+        syncToolbar();
     }
 
     function toggleMode() {

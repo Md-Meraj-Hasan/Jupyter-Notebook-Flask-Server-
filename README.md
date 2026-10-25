@@ -73,11 +73,11 @@ Notebook cells now have a language selector: Python, HTML, or CSS. Run on an HTM
 
 
 ## NiceCoding shared storage (v1.3.8)
-Open File → Setup Downloads/NiceCoding and choose the **Downloads** folder in Android system picker. The app creates `NiceCoding/Notebook`, `NiceCoding/Python`, and `NiceCoding/HTML_CSS` inside it. The app uses scoped Storage Access Framework access; it does not request broad storage permission. Notebook relative data files should be kept in `NiceCoding/Notebook`.
+Open File → Setup Downloads/NiceCoding and choose the **Downloads** folder in Android system picker. The app creates `NiceCoding/Notebook`, `NiceCoding/Python`, `NiceCoding/HTML_CSS`, and `NiceCoding/SQL` inside it. The app uses scoped Storage Access Framework access; it does not request broad storage permission. Notebook relative data files should be kept in `NiceCoding/Notebook`.
 
 
 ## NiceCoding first-run storage
-On the first launch, Android opens its system folder picker so the user can grant persistent access to the Downloads folder. Select **Downloads** (not a child folder); the app creates `NiceCoding/Notebook`, `NiceCoding/Python`, and `NiceCoding/HTML_CSS` automatically. The persisted Storage Access Framework grant is reused on later launches. Notebook code execution refreshes files from `NiceCoding/Notebook` into the app's Python working directory before running, so relative paths such as `pd.read_csv("housing.csv")` work when the CSV is in that folder. Android requires this one-time system folder selection; an app cannot silently grant itself broad Downloads access.
+On the first launch, Android opens its system folder picker so the user can grant persistent access to the Downloads folder. Select **Downloads** (not a child folder); the app creates `NiceCoding/Notebook`, `NiceCoding/Python`, and `NiceCoding/HTML_CSS`, and `NiceCoding/SQL` automatically. The persisted Storage Access Framework grant is reused on later launches. Notebook code execution refreshes files from `NiceCoding/Notebook` into the app's Python working directory before running, so relative paths such as `pd.read_csv("housing.csv")` work when the CSV is in that folder. Android requires this one-time system folder selection; an app cannot silently grant itself broad Downloads access.
 
 
 ## v1.4.3 — ML library and NumPy pickle compatibility
@@ -85,3 +85,10 @@ On the first launch, Android opens its system folder picker so the user can gran
 - Added a startup compatibility alias for `numpy._core` pickle paths when loading joblib/pickle artifacts created under NumPy 2.x while this app uses NumPy 1.23.x.
 - The `joblib` warning about `sem_open` means joblib uses serial execution on Android; it is a warning, not the cause of `ModuleNotFoundError`.
 - This source update has not been validated by a GitHub Actions APK build or on-device model loading.
+
+
+### SQLite3 workspace storage
+
+- SQL output image downloads are routed to the separate `Downloads/NiceCoding/SQL` folder after you grant Downloads access using **File → Setup Downloads/NiceCoding**.
+- The SQLite database itself is kept in app-private storage under `files/NiceCoding/sqlite/nicecoding.sqlite3`; it is intentionally separate from exported output files.
+- The SQL notebook posts queries to the Flask `/run-sql` endpoint. Each cell accepts one SQL statement; use separate cells for multiple statements.

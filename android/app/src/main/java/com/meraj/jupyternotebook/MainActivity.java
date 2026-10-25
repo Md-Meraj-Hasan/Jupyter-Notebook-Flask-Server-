@@ -73,7 +73,7 @@ public class MainActivity extends Activity {
                 handler.post(() -> {
                     android.content.SharedPreferences prefs = getSharedPreferences("saved_file_uris", MODE_PRIVATE);
                     String uriText = saveAs ? null : prefs.getString(finalKey, null);
-                    String workspaceName = finalKey.startsWith("python:") ? "python" : (finalKey.startsWith("web:") ? "web" : "notebook");
+                    String workspaceName = finalKey.startsWith("python:") ? "python" : (finalKey.startsWith("web:") ? "web" : (finalKey.startsWith("sql:") ? "sqlite" : "notebook"));
                     String managedFolder = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + workspaceName, null);
                     if (managedFolder != null) {
                         try {
@@ -226,6 +226,7 @@ public class MainActivity extends Activity {
     private String safeWorkspace(String value) {
         if ("python".equals(value)) return "python";
         if ("web".equals(value)) return "web";
+        if ("sqlite".equals(value)) return "sqlite";
         return "notebook";
     }
 
@@ -322,13 +323,15 @@ public class MainActivity extends Activity {
         Uri notebook = findOrCreateDirectory(treeUri, nice, "Notebook");
         Uri python = findOrCreateDirectory(treeUri, nice, "Python");
         Uri web = findOrCreateDirectory(treeUri, nice, "HTML_CSS");
+        Uri sql = findOrCreateDirectory(treeUri, nice, "SQL");
         android.content.SharedPreferences.Editor edit = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).edit();
         edit.putString("tree_uri", treeUri.toString());
         edit.putString("folder_notebook", notebook.toString());
         edit.putString("folder_python", python.toString());
         edit.putString("folder_web", web.toString());
+        edit.putString("folder_sqlite", sql.toString());
         edit.apply();
-        for (String ws : new String[]{"notebook", "python", "web"}) {
+        for (String ws : new String[]{"notebook", "python", "web", "sqlite"}) {
             File local = workspaceLocalDir(ws);
             if (!local.exists()) local.mkdirs();
             Uri folder = Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_" + ws, ""));

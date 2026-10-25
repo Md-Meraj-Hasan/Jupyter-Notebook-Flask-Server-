@@ -583,9 +583,13 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                 const response = await fetch('/run-sql', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})});
                 const data = await response.json();
                 let resultHtml = "";
-                if (data.output) resultHtml += `<pre style="margin:0 0 8px;white-space:pre-wrap">${escapePreviewText(data.output)}</pre>`;
-                if (data.html) resultHtml += data.html;
-                outputDiv.innerHTML = resultHtml || "<span style='color:gray;'>SQL executed</span>";
+                if (data.ok === false && data.output) {
+                    resultHtml = `<pre style="margin:0;white-space:pre-wrap;color:#c0392b">${escapePreviewText(data.output)}</pre>`;
+                } else {
+                    if (data.output) resultHtml += `<pre style="margin:0 0 8px;white-space:pre-wrap">${escapePreviewText(data.output)}</pre>`;
+                    if (data.html) resultHtml += data.html;
+                }
+                outputDiv.innerHTML = resultHtml;
             } catch (err) { outputDiv.textContent = "SQLite connection error: " + err; }
             return;
         }

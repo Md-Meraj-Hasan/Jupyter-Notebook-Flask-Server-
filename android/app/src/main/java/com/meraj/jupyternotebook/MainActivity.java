@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -34,6 +35,8 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 4207;
     private WebView webView;
     private ValueCallback<Uri[]> fileChooserCallback;
+    private volatile String serverStartupError = "";
+    private volatile boolean activityClosing = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,13 +74,26 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
+        showStatusPage("Starting NiceCoding", "Starting the embedded Python runtime and local notebook server. This can take a little while on the first launch.", false);
+
+        try {
+            if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
+        } catch (Throwable error) {
+            serverStartupError = Log.getStackTraceString(error);
+            Log.e(TAG, "Could not initialize embedded Python runtime", error);
+            showStatusPage("Python runtime failed to initialize", serverStartupError, true);
+            return;
+        }
         Thread serverThread = new Thread(() -> {
             try {
+                Log.i(TAG, "Loading android_server Python module");
                 Python.getInstance().getModule("android_server").callAttr("start_server");
+                Log.e(TAG, "Local server returned unexpectedly");
+                serverStartupError = "The server process returned without serving requests. Check the Python startup logs.";
             } catch (Throwable error) {
+                serverStartupError = Log.getStackTraceString(error);
                 Log.e(TAG, "Could not start local notebook server", error);
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "NiceCoding server failed to start. Check bundled Python packages.", Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> showStatusPage("NiceCoding server failed", serverStartupError, true));
             }
         }, "nicecoding-python-server");
         serverThread.setDaemon(true);
@@ -85,28 +101,69 @@ public class MainActivity extends Activity {
 
         Thread pageThread = new Thread(() -> {
             boolean ready = false;
-            for (int i = 0; i < 100 && !ready; i++) {
+            int lastStatusCode = -1;
+            // Allow up to two minutes for first-start imports of scientific Python packages.
+            for (int i = 0; i < 120 && !ready && !activityClosing; i++) {
+                if (!serverStartupError.isEmpty()) {
+                    final String errorText = serverStartupError;
+                    runOnUiThread(() -> showStatusPage("NiceCoding server failed", errorText, true));
+                    return;
+                }
                 HttpURLConnection connection = null;
                 try {
                     connection = (HttpURLConnection) new URL("http://127.0.0.1:8000/").openConnection();
-                    connection.setConnectTimeout(500);
-                    connection.setReadTimeout(500);
+                    connection.setConnectTimeout(700);
+                    connection.setReadTimeout(1200);
                     connection.setRequestMethod("GET");
-                    ready = connection.getResponseCode() == 200;
+                    lastStatusCode = connection.getResponseCode();
+                    ready = lastStatusCode == 200;
                 } catch (Exception ignored) {
-                    try { Thread.sleep(250); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); return; }
+                    // The local server may still be importing its Python modules.
                 } finally {
                     if (connection != null) connection.disconnect();
                 }
+                if (!ready) {
+                    try { Thread.sleep(500); } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
             }
             final boolean serverReady = ready;
+            final int responseCode = lastStatusCode;
             runOnUiThread(() -> {
-                if (serverReady) webView.loadUrl("http://127.0.0.1:8000/");
-                else Toast.makeText(MainActivity.this, "NiceCoding server did not start. Please check the APK build logs.", Toast.LENGTH_LONG).show();
+                if (activityClosing || webView == null) return;
+                if (serverReady) {
+                    Log.i(TAG, "Local notebook server is ready; loading UI");
+                    webView.loadUrl("http://127.0.0.1:8000/");
+                } else if (!serverStartupError.isEmpty()) {
+                    showStatusPage("NiceCoding server failed", serverStartupError, true);
+                } else {
+                    String details = "The local server did not return HTTP 200 within 120 seconds. Last HTTP status: " + responseCode
+                            + "\n\nPlease send a screenshot of this screen and the GitHub Actions build log. The error is not hidden behind a blank white page anymore.";
+                    showStatusPage("Server did not become ready", details, true);
+                }
             });
         }, "nicecoding-page-loader");
         pageThread.setDaemon(true);
         pageThread.start();
+    }
+
+    private void showStatusPage(String title, String message, boolean error) {
+        if (webView == null || activityClosing) return;
+        String safeTitle = TextUtils.htmlEncode(title == null ? "NiceCoding" : title);
+        String safeMessage = TextUtils.htmlEncode(message == null ? "No diagnostic details available." : message);
+        String accent = error ? "#ff6b6b" : "#9b8cff";
+        String html = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
+                + "<meta charset='utf-8'><style>body{margin:0;background:#101018;color:#f3f2fa;font:16px system-ui;padding:24px}"
+                + ".card{max-width:760px;margin:8vh auto;background:#1b1b28;border:1px solid #37364b;border-radius:18px;padding:24px}"
+                + "h2{color:" + accent + ";margin-top:0}p{line-height:1.55;color:#cbc9d8}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#101018;padding:14px;border-radius:10px;color:#ffd7d7;font-size:12px}"
+                + ".dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:" + accent + ";margin-right:8px}</style></head><body><div class='card'>"
+                + "<h2><span class='dot'></span>" + safeTitle + "</h2><p>" + (error ? "Startup diagnostic:" : "Please wait while the local server starts.") + "</p>"
+                + (error ? "<pre>" + safeMessage + "</pre><p>Take a screenshot of this error and send it here. Do not share passwords or private data.</p>"
+                         : "<p>NiceCoding runs its Python server inside this app. The page will open automatically when the server is ready.</p>")
+                + "</div></body></html>";
+        webView.loadDataWithBaseURL("http://127.0.0.1:8000/", html, "text/html", "UTF-8", null);
     }
 
     @Override
@@ -122,6 +179,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        activityClosing = true;
         if (webView != null) {
             webView.removeJavascriptInterface("NiceCodingBridge");
             webView.destroy();

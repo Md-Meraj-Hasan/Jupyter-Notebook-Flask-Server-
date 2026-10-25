@@ -40,3 +40,8 @@ The first GitHub Actions build requires internet to download Gradle, Android SDK
 - Python files pass `py_compile`.
 - The notebook's inline JavaScript and the local web-editor syntax-mode JavaScript pass Node.js syntax checks.
 - This environment does not have the project's Python dependencies or Android SDK/Gradle build dependencies installed, so a complete APK build was not run here. Use the GitHub Actions workflow to confirm the Android build.
+
+
+## Android server startup diagnostics
+
+The Android launcher now shows a visible startup screen instead of remaining blank while the local Flask server starts. If the embedded Python runtime or server fails, the screen displays the captured Java/Python exception. The local server readiness wait is up to 120 seconds to allow scientific Python imports on slower devices. This diagnostic change helps identify the exact runtime failure; it does not claim that a device-specific dependency issue is resolved until the app is rebuilt and tested on-device.

@@ -33,3 +33,11 @@ Validation
 
 
 Follow-up fix: Added File > Import SQLite Database for existing .db/.sqlite/.sqlite3 files. The Flask endpoint validates file extension, SQLite header, and PRAGMA quick_check; stores the import in the app's database folder without overwriting an existing file; then selects it as CURRENT_DB and updates SQLITE_DB_PATH. The UI, backend, and Android-bundled copies were kept in sync.
+
+
+Android startup diagnostics update (2026-10-25)
+- Added a visible loading screen while the embedded Python/Flask server starts.
+- Added a visible diagnostic screen for Python runtime initialization and server import failures.
+- Extended server readiness polling from roughly 25 seconds to up to 120 seconds.
+- Logged server startup state under the NiceCoding Android log tag.
+- This update surfaces the cause of startup failure; it is not a substitute for testing the rebuilt APK on the user's device.

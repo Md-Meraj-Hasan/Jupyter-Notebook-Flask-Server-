@@ -85,12 +85,22 @@ public class MainActivity extends Activity {
                                     output.write(decoded); output.flush();
                                 }
                             } else {
-                                writeSafFile(folderUri, finalName, finalMime, decoded, !saveAs);
-                                Uri created = findChildFile(Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", folderUri.toString())), folderUri, finalName);
-                                if (created != null) prefs.edit().putString(finalKey, created.toString()).apply();
+                                // Save As creates a new file; if the name already exists, add _1, _2, etc.
+                                // Ordinary Save updates the existing file.
+                                String savedName = writeSafFile(folderUri, finalName, finalMime, decoded, !saveAs);
+                                Uri treeUri = Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", folderUri.toString()));
+                                Uri created = findChildFile(treeUri, folderUri, savedName);
+                                if (created != null) {
+                                    android.content.SharedPreferences.Editor edit = prefs.edit().putString(finalKey, created.toString());
+                                    edit.putString(saveKeyWithFilename(finalKey, savedName), created.toString()).apply();
+                                }
+                                writeBytes(new File(workspaceLocalDir(workspaceName), savedName), decoded);
+                                if (webView != null) webView.evaluateJavascript(
+                                    "window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'Saved in Downloads/NiceCoding', '" + jsSafe(savedName) + "')", null);
+                                return;
                             }
                             writeBytes(new File(workspaceLocalDir(workspaceName), finalName), decoded);
-                            if (webView != null) webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'Saved in Downloads/NiceCoding')", null);
+                            if (webView != null) webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'Saved in Downloads/NiceCoding', '" + jsSafe(finalName) + "')", null);
                             return;
                         } catch (Exception storageError) {
                             notifyJs(false, "NiceCoding storage error: " + storageError.getMessage());
@@ -266,23 +276,44 @@ public class MainActivity extends Activity {
         return null;
     }
 
-    private void writeSafFile(Uri folderUri, String filename, String mime, byte[] bytes, boolean replaceExisting) throws Exception {
+    private String writeSafFile(Uri folderUri, String filename, String mime, byte[] bytes, boolean replaceExisting) throws Exception {
         Uri treeUri = Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", folderUri.toString()));
-        Uri target = replaceExisting ? findChildFile(treeUri, folderUri, filename) : null;
-        if (target != null) {
+        Uri target = findChildFile(treeUri, folderUri, filename);
+        String actualName = filename;
+        if (target != null && replaceExisting) {
             try (OutputStream out = getContentResolver().openOutputStream(target, "wt")) {
-                if (out == null) throw new java.io.IOException("Cannot write file");
-                out.write(bytes); out.flush();
+                if (out == null) throw new java.io.IOException("Cannot write existing file " + filename);
+                out.write(bytes);
+                out.flush();
             }
-        } else {
-            String type = (mime == null || mime.trim().isEmpty()) ? "application/octet-stream" : mime;
-            Uri created = DocumentsContract.createDocument(getContentResolver(), folderUri, type, filename);
-            if (created == null) throw new java.io.IOException("Cannot create " + filename);
-            try (OutputStream out = getContentResolver().openOutputStream(created, "wt")) {
-                if (out == null) throw new java.io.IOException("Cannot write file");
-                out.write(bytes); out.flush();
-            }
+            return filename;
         }
+        // Save As never overwrites. Keep the original extension and choose the first free _N suffix.
+        if (target != null) {
+            int dot = filename.lastIndexOf('.');
+            String base = dot > 0 ? filename.substring(0, dot) : filename;
+            String ext = dot > 0 ? filename.substring(dot) : "";
+            int index = 1;
+            do {
+                actualName = base + "_" + index + ext;
+                index++;
+            } while (findChildFile(treeUri, folderUri, actualName) != null);
+        }
+        String type = (mime == null || mime.trim().isEmpty()) ? "application/octet-stream" : mime;
+        Uri created = DocumentsContract.createDocument(getContentResolver(), folderUri, type, actualName);
+        if (created == null) throw new java.io.IOException("Cannot create " + actualName);
+        try (OutputStream out = getContentResolver().openOutputStream(created, "wt")) {
+            if (out == null) throw new java.io.IOException("Cannot write file " + actualName);
+            out.write(bytes);
+            out.flush();
+        }
+        return actualName;
+    }
+
+    private String saveKeyWithFilename(String saveKey, String filename) {
+        if (saveKey == null) return filename;
+        int separator = saveKey.lastIndexOf(':');
+        return separator >= 0 ? saveKey.substring(0, separator + 1) + filename : filename;
     }
 
     private void configureNiceCodingTree(Uri treeUri) throws Exception {

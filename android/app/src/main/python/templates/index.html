@@ -16,14 +16,14 @@
 (function(){ if(!window.CodeMirror || CodeMirror.modes.javascript) return;
 CodeMirror.defineMode("javascript", function(){ return {startState:function(){return {string:null,comment:false};},token:function(stream,state){
  if(state.comment){if(stream.skipTo("*/")){stream.match("*/");state.comment=false;}else stream.skipToEnd();return "comment";}
- if(state.string){while(!stream.eol()){var ch=stream.next();if(ch===state.string){state.string=null;break;}if(ch==="\\\\")stream.next();}return "string";}
+ if(state.string){while(!stream.eol()){var ch=stream.next();if(ch===state.string){state.string=null;break;}if(ch==="\\")stream.next();}return "string";}
  if(stream.eatSpace())return null;
  if(stream.match("//")){stream.skipToEnd();return "comment";}
  if(stream.match("/*")){state.comment=true;return "comment";}
  if(stream.match(/^(?:'[^']*'|"[^"]*"|`[^`]*`)/))return "string";
- if(stream.match(/^(?:const|let|var|function|return|if|else|for|while|new|class|this|true|false|null|undefined|async|await|import|export|from|try|catch|throw)\\b/))return "keyword";
- if(stream.match(/^[A-Za-z_$][\\w$]*(?=\\s*\\()/))return "def";
- if(stream.match(/^\\d+(?:\\.\\d+)?/))return "number";
+ if(stream.match(/^(?:const|let|var|function|return|if|else|for|while|new|class|this|true|false|null|undefined|async|await|import|export|from|try|catch|throw)\b/))return "keyword";
+ if(stream.match(/^[A-Za-z_$][\w$]*(?=\s*\()/))return "def";
+ if(stream.match(/^\d+(?:\.\d+)?/))return "number";
  stream.next();return null;
 }};});})();
 /* Offline HTML/CSS tokenizers for the bundled CodeMirror 5 editor. */
@@ -331,7 +331,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
       <div class="dropdown-content mode-menu" id="mode-menu">
         <div onclick="selectWorkspace('notebook')">📒 Notebook</div>
         <div onclick="selectWorkspace('python')">🐍 Python</div>
-        <div onclick="selectWorkspace('web')">🌐 HTML &amp; CSS</div>
+        <div onclick="selectWorkspace('web')">🌐 HTML, CSS &amp; JavaScript</div>
       </div>
     </div>
     <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶ Run</button>
@@ -357,7 +357,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     <button class="icon-btn clear" onclick="clearConsole()" title="Clear output" aria-label="Clear output">Clear</button>
     <button class="icon-btn stop" onclick="cancelScript()" title="Stop Python" aria-label="Stop Python">Stop</button>
   </div>
-  <iframe id="coding-web-preview" title="HTML and CSS output" sandbox="allow-forms allow-modals allow-popups"></iframe>
+  <iframe id="coding-web-preview" title="HTML and CSS output" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
   <div id="console-terminal" role="log" aria-live="polite">
     <pre id="console-output"></pre>
     <div id="console-input-row"><span id="console-prompt"></span><input id="console-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Python input"></div>
@@ -790,9 +790,11 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     // Keep compatibility with the old File menu callback.
     function saveToFile() { saveCurrentFile(false); }
 
-    window.onNativeDownloadResult = function(success, message) {
-        if (success) alert(message || "File saved successfully");
-        else if (message && message !== "Save cancelled") alert(message);
+    window.onNativeDownloadResult = function(success, message, actualFilename) {
+        if (success) {
+            if (actualFilename) currentFileName = actualFilename;
+            alert(message || ("File saved successfully" + (actualFilename ? ": " + actualFilename : "")));
+        } else if (message && message !== "Save cancelled") alert(message);
     };
     
     function loadCurrentFile(event) {
@@ -876,7 +878,8 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     let codingLanguage = "python";
     let webEditor = null;
     let savedHtmlCode = "";
-    let savedCssCode = "";\n    let savedJsCode = "";
+    let savedCssCode = "";
+    let savedJsCode = "";
 
     function selectCodingLanguage(language) {
         if (!["python", "html", "css", "javascript"].includes(language)) language = "python";
@@ -904,8 +907,8 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         }
         if (webEditor) {
             if (language !== 'python') lastFocusedEditor = webEditor;
-            webEditor.setOption("mode", language === "html" ? "text/html" : "css");
-            webEditor.setValue(language === "html" ? savedHtmlCode : savedCssCode);
+            webEditor.setOption("mode", language === "html" ? "text/html" : (language === "css" ? "css" : "javascript"));
+            webEditor.setValue(language === "html" ? savedHtmlCode : (language === "css" ? savedCssCode : savedJsCode));
             webEditor.setSize("100%", "auto");
             setTimeout(() => webEditor.refresh(), 50);
         }
@@ -938,8 +941,8 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         } else {
             rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">${style}</head><body>${html}</body></html>`;
         }
-        const jsTag = '<scr' + 'ipt>' + js + '\\n</scr' + 'ipt>';
-        if (/<\\/body\\s*>/i.test(rendered)) rendered = rendered.replace(/<\\/body\\s*>/i, jsTag + '</body>');
+        const jsTag = '<scr' + 'ipt>' + js + '\n</scr' + 'ipt>';
+        if (/<\/body\s*>/i.test(rendered)) rendered = rendered.replace(/<\/body\s*>/i, jsTag + '</body>');
         else rendered += jsTag;
         document.getElementById("coding-web-preview").srcdoc = rendered;
         window.scrollTo(0, 0);
@@ -969,7 +972,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         if (languageTabs) languageTabs.style.display = workspace === 'web' ? 'flex' : 'none';
         document.getElementById('coding-output-page').style.display = 'none';
         document.body.classList.remove('terminal-open');
-        document.getElementById('mode-switch').textContent = workspace === 'notebook' ? '📒 Notebook ▾' : (workspace === 'python' ? '🐍 Python ▾' : '🌐 HTML & CSS ▾');
+        document.getElementById('mode-switch').textContent = workspace === 'notebook' ? '📒 Notebook ▾' : (workspace === 'python' ? '🐍 Python ▾' : '🌐 HTML/CSS/JS ▾');
         document.getElementById('top-run-btn').style.display = workspace === 'notebook' ? 'none' : 'inline-flex';
         if (!scriptEditor) {
             scriptEditor = CodeMirror.fromTextArea(document.getElementById('script-code'), {

@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Used for the local loopback Flask server inside the app; no remote backend is configured. -->
+    <!-- Required for the app's own loopback WebView server only; no remote service is used. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:icon="@mipmap/ic_launcher"
@@ -7,13 +7,12 @@
         android:allowBackup="false"
         android:label="NiceCoding"
         android:usesCleartextTraffic="true"
-        android:hardwareAccelerated="true"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+            android:screenOrientation="unspecified">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

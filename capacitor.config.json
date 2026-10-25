@@ -1,8 +1,6 @@
 {
-  "appId": "com.meraj.jupyternotebook",
-  "appName": "NiceCoding",
+  "appId": "com.cd786hassan.indianrummy",
+  "appName": "Indian Professional Rummy",
   "webDir": "www",
-  "server": {
-    "androidScheme": "https"
-  }
+  "server": { "androidScheme": "https" }
 }

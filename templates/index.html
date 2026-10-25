@@ -174,8 +174,18 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    margin-bottom: 10px;
+    font-size: 19px;
+    line-height: 1;
+}
+.toolbar-download-btn {
+    color: #22a447;
+    font-weight: 700;
+    min-width: 28px;
+    min-height: 28px;
+    margin-right: 2px;
+}
+.toolbar-download-btn:active {
+    opacity: 0.65;
 }
 
 
@@ -507,6 +517,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             <div class="cell" id="cell-${id}" data-language="${safeLanguage}">
                 <div class="toolbar">
                     <span class="cell-label">In [${id}]:</span>
+                    <button class="download-btn toolbar-download-btn" onclick="downloadOutput(${id})" title="Download output" aria-label="Download output">⬇</button>
                     <button class="btn-run" onclick="runCell(${id})">▶ Run</button>
                     <button class="btn-nav" onclick="moveCellUp(${id})">⬆️</button>
                     <button class="btn-nav" onclick="moveCellDown(${id})">⬇️</button>
@@ -515,7 +526,6 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                 </div>
                 <textarea id="code-${id}"></textarea>
                 <div id="out-cont-${id}" class="output-container">
-                    <button class="download-btn" onclick="downloadOutput(${id})" title="Download">⬇️</button>
                     <div id="output-${id}" class="output-area"></div>
                 </div>
             </div>`;

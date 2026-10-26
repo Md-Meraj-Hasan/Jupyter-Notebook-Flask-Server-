@@ -23,7 +23,6 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.ScrollView;
 
 import com.chaquo.python.android.AndroidPlatform;
 import com.chaquo.python.Python;
@@ -37,7 +36,6 @@ public class MainActivity extends Activity {
     private WebView webView;
     private FrameLayout root;
     private TextView status;
-    private View startupScreen;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private volatile boolean pageLoaded = false;
     private ValueCallback<Uri[]> filePathCallback;
@@ -342,142 +340,6 @@ public class MainActivity extends Activity {
         Python.getInstance().getModule("jupyter").callAttr("set_workspace_dir", workspaceLocalDir("notebook").getAbsolutePath());
     }
 
-
-    private int dp(float value) {
-        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
-    }
-
-    private TextView startupLabel(String text, float size, int color, boolean bold) {
-        TextView v = new TextView(this);
-        v.setText(text);
-        v.setTextSize(size);
-        v.setTextColor(color);
-        v.setGravity(android.view.Gravity.CENTER);
-        if (bold) v.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
-        return v;
-    }
-
-    private android.graphics.drawable.GradientDrawable startupPanel(int color, int strokeColor) {
-        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
-        d.setColor(color);
-        d.setCornerRadius(dp(18));
-        d.setStroke(dp(1), strokeColor);
-        return d;
-    }
-
-    private View createStartupScreen() {
-        int navy = Color.rgb(5, 12, 35);
-        int panel = Color.rgb(10, 25, 54);
-        int cyan = Color.rgb(42, 220, 255);
-        int pale = Color.rgb(225, 239, 255);
-        int muted = Color.rgb(166, 194, 231);
-        int green = Color.rgb(0, 220, 150);
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackgroundColor(navy);
-        scroll.setVerticalScrollBarEnabled(false);
-
-        android.widget.LinearLayout page = new android.widget.LinearLayout(this);
-        page.setOrientation(android.widget.LinearLayout.VERTICAL);
-        page.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
-        page.setPadding(dp(18), dp(26), dp(18), dp(22));
-        page.setBackgroundColor(navy);
-        scroll.addView(page, new ScrollView.LayoutParams(-1, -2));
-
-        TextView offline = startupLabel("●  OFFLINE MODE  •  v1.0", 12, cyan, true);
-        offline.setGravity(android.view.Gravity.RIGHT | android.view.Gravity.CENTER_VERTICAL);
-        page.addView(offline, new android.widget.LinearLayout.LayoutParams(-1, dp(28)));
-
-        TextView title = startupLabel("NiceCoding", 38, Color.WHITE, true);
-        title.setLetterSpacing(-0.035f);
-        page.addView(title, new android.widget.LinearLayout.LayoutParams(-1, dp(58)));
-
-        TextView subtitle = startupLabel("All-in-One Offline Coding Workspace", 14, muted, false);
-        subtitle.setPadding(0, 0, 0, dp(14));
-        page.addView(subtitle, new android.widget.LinearLayout.LayoutParams(-1, dp(38)));
-
-        android.widget.LinearLayout serverCard = new android.widget.LinearLayout(this);
-        serverCard.setOrientation(android.widget.LinearLayout.VERTICAL);
-        serverCard.setPadding(dp(15), dp(14), dp(15), dp(14));
-        serverCard.setBackground(startupPanel(panel, green));
-        android.widget.LinearLayout.LayoutParams serverLp =
-                new android.widget.LinearLayout.LayoutParams(-1, -2);
-        serverLp.bottomMargin = dp(20);
-        page.addView(serverCard, serverLp);
-
-        TextView serverTitle = startupLabel("FLASK SERVER  →  LOCALHOST", 15, cyan, true);
-        serverTitle.setGravity(android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL);
-        serverCard.addView(serverTitle, new android.widget.LinearLayout.LayoutParams(-1, dp(28)));
-
-        TextView serverUrl = startupLabel("http://127.0.0.1:8000", 14, Color.WHITE, true);
-        serverUrl.setGravity(android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL);
-        serverCard.addView(serverUrl, new android.widget.LinearLayout.LayoutParams(-1, dp(28)));
-
-        status = new TextView(this);
-        status.setText("Starting offline Python engine…\\nPlease wait");
-        status.setTextColor(pale);
-        status.setTextSize(14);
-        status.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        status.setPadding(0, dp(8), 0, dp(4));
-        status.setLineSpacing(dp(3), 1.0f);
-        serverCard.addView(status, new android.widget.LinearLayout.LayoutParams(-1, -2));
-
-        TextView workspaceHeading = startupLabel("Choose Your Workspace", 21, Color.WHITE, true);
-        workspaceHeading.setPadding(0, 0, 0, dp(4));
-        page.addView(workspaceHeading, new android.widget.LinearLayout.LayoutParams(-1, dp(38)));
-
-        TextView workspaceSub = startupLabel("Your tools are ready when the server starts", 12, muted, false);
-        page.addView(workspaceSub, new android.widget.LinearLayout.LayoutParams(-1, dp(26)));
-
-        String[][] workspaces = new String[][] {
-                {"📓", "Notebook", "Jupyter-style coding & learning", "#F59E0B"},
-                {"🐍", "Python", "Write and run Python code", "#38BDF8"},
-                {"🗃", "SQLite3", "Local database and SQL queries", "#34D399"},
-                {"🌐", "HTML", "Build pages with live preview", "#FB7185"},
-                {"🎨", "CSS", "Style your web pages", "#A78BFA"},
-                {"JS", "JavaScript", "Add interactivity to web pages", "#FACC15"}
-        };
-        for (String[] ws : workspaces) {
-            int accent;
-            try { accent = Color.parseColor(ws[3]); } catch (Exception ignored) { accent = cyan; }
-            android.widget.LinearLayout card = new android.widget.LinearLayout(this);
-            card.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-            card.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            card.setPadding(dp(14), dp(10), dp(12), dp(10));
-            card.setBackground(startupPanel(Color.rgb(9, 22, 48), accent));
-            android.widget.LinearLayout.LayoutParams cardLp =
-                    new android.widget.LinearLayout.LayoutParams(-1, -2);
-            cardLp.bottomMargin = dp(9);
-            page.addView(card, cardLp);
-
-            TextView icon = startupLabel(ws[0], 25, accent, true);
-            card.addView(icon, new android.widget.LinearLayout.LayoutParams(dp(52), dp(48)));
-
-            android.widget.LinearLayout labels = new android.widget.LinearLayout(this);
-            labels.setOrientation(android.widget.LinearLayout.VERTICAL);
-            labels.setPadding(dp(8), 0, 0, 0);
-            card.addView(labels, new android.widget.LinearLayout.LayoutParams(0, -2, 1f));
-
-            TextView name = startupLabel(ws[1], 15, Color.WHITE, true);
-            name.setGravity(android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL);
-            labels.addView(name, new android.widget.LinearLayout.LayoutParams(-1, dp(24)));
-
-            TextView desc = startupLabel(ws[2], 11, muted, false);
-            desc.setGravity(android.view.Gravity.LEFT | android.view.Gravity.CENTER_VERTICAL);
-            labels.addView(desc, new android.widget.LinearLayout.LayoutParams(-1, -2));
-        }
-
-        TextView creator = startupLabel("Created by  @cd786hasan", 14, cyan, true);
-        creator.setPadding(0, dp(16), 0, dp(4));
-        page.addView(creator, new android.widget.LinearLayout.LayoutParams(-1, dp(42)));
-
-        TextView tagline = startupLabel("Learn  •  Practice  •  Build  •  Offline", 11, muted, false);
-        page.addView(tagline, new android.widget.LinearLayout.LayoutParams(-1, dp(24)));
-
-        return scroll;
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -486,9 +348,13 @@ public class MainActivity extends Activity {
 
         root = new FrameLayout(this);
         webView = new WebView(this);
-        startupScreen = createStartupScreen();
+        status = new TextView(this);
+        status.setText("Starting offline Python engine…\nPlease wait");
+        status.setTextColor(Color.DKGRAY);
+        status.setTextSize(17);
+        status.setGravity(android.view.Gravity.CENTER);
         root.addView(webView, new FrameLayout.LayoutParams(-1, -1));
-        root.addView(startupScreen, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(status, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
 
         webView.getSettings().setJavaScriptEnabled(true);
@@ -544,7 +410,7 @@ public class MainActivity extends Activity {
             @Override public void onPageFinished(WebView view, String url) {
                 if (url.startsWith("http://127.0.0.1:8000") || url.startsWith("http://localhost:8000")) {
                     pageLoaded = true;
-                    startupScreen.setVisibility(View.GONE);
+                    status.setVisibility(View.GONE);
                     webView.setVisibility(View.VISIBLE);
                     // First launch only: ask the user to grant persistent access to Downloads.
                     // Once granted, NiceCoding/Notebook, Python and HTML_CSS are created automatically.

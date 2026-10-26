@@ -23,6 +23,7 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.ScrollView;
 
 import com.chaquo.python.android.AndroidPlatform;
 import com.chaquo.python.Python;

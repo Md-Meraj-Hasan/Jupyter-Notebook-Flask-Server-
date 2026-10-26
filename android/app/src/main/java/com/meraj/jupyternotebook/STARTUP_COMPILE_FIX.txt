@@ -1,0 +1,4 @@
+Compile fix for the NiceCoding vertical startup screen.
+Added the missing import: android.widget.ScrollView.
+No Python startup, Flask startup, localhost polling, WebView, or workspace logic was changed.
+Please run the GitHub Actions build again. This ZIP has not been built on an Android SDK here.

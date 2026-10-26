@@ -357,6 +357,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             <div onclick="newNotebook()">📄 New</div>
             <div onclick="openCurrentFile()">📂 Open</div>
             <div onclick="setupNiceCodingStorage()">📁 Setup Downloads/NiceCoding</div>
+            <div onclick="openSqliteDatabase()">🗄️ Open Database (.db)</div>
             <div onclick="saveCurrentFile(false)">💾 Save</div>
             <div onclick="saveCurrentFile(true)">📝 Save As</div>
         </div>
@@ -373,6 +374,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     </div>
     <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶ Run</button>
     <input type="file" id="file-input" accept=".ipynb,.json,.py,.html,.htm,.css,.csv,text/plain,text/html,application/json,application/x-ipynb+json" style="display:none" onchange="loadCurrentFile(event)">
+<input type="file" id="sqlite-db-file-input" accept=".db,.sqlite,.sqlite3,application/octet-stream" style="display:none" onchange="handleSqliteDatabaseFile(event)">
 </div>
 
 <div class="container" id="notebook"></div>
@@ -611,15 +613,17 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         outputDiv.innerHTML = "";
 
         if (language === "sql" || currentWorkspace === "sqlite") {
-            outputDiv.textContent = "Executing SQL…";
+            outputDiv.innerHTML = "<span style=\"color:#666;font-style:italic;\">Executing...</span>";
             try {
                 const response = await fetch('/run-sql', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})});
                 const data = await response.json();
                 let resultHtml = "";
                 if (data.ok === false && data.output) {
                     resultHtml = `<pre style="margin:0;white-space:pre-wrap;color:#c0392b">${escapePreviewText(data.output)}</pre>`;
-                } else if (data.html) {
-                    resultHtml = data.html;
+                } else {
+                    if (data.html) resultHtml = data.html;
+                    const status = `<div class="sql-execution-status" style="margin-top:8px;color:#238636;font-size:13px;">Executed</div>`;
+                    resultHtml += status;
                 }
                 outputDiv.innerHTML = resultHtml;
             } catch (err) { outputDiv.textContent = "SQLite connection error: " + err; }
@@ -1039,6 +1043,39 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         const menu = document.getElementById('mode-menu');
         if (menu && !event.target.closest('.mode-dropdown')) menu.style.display = 'none';
     });
+
+    function openSqliteDatabase() {
+        document.getElementById('mode-menu').style.display = 'none';
+        document.getElementById('sqlite-db-file-input').click();
+    }
+
+    async function handleSqliteDatabaseFile(event) {
+        const input = event.target;
+        const file = input.files && input.files[0];
+        if (!file) return;
+        try {
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Could not read selected database file.'));
+                reader.readAsDataURL(file);
+            });
+            const base64Data = String(dataUrl).split(',')[1] || '';
+            const response = await fetch('/open-sqlite-db', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: file.name, data: base64Data})
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.error || 'Could not open database.');
+            selectWorkspace('sqlite');
+            const tables = result.tables.length ? result.tables.join(', ') : '(no user tables found)';
+            alert('Database opened: ' + result.filename + '\nTables: ' + tables);
+        } catch (error) {
+            alert('Database open error: ' + error.message);
+        } finally {
+            input.value = '';
+        }
+    }
 
     function selectWorkspace(workspace) {
         if (!['notebook','python','web','sqlite'].includes(workspace)) workspace = 'notebook';

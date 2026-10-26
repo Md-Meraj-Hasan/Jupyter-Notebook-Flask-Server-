@@ -394,6 +394,51 @@ def _nicecoding_sqlite_db_path():
             continue
     raise OSError("Cannot create a writable SQLite database folder")
 
+_ACTIVE_SQLITE_DB_PATH = None
+
+def _active_sqlite_db_path():
+    global _ACTIVE_SQLITE_DB_PATH
+    return Path(_ACTIVE_SQLITE_DB_PATH) if _ACTIVE_SQLITE_DB_PATH else _nicecoding_sqlite_db_path()
+
+@app.route("/open-sqlite-db", methods=["POST"])
+def open_sqlite_db():
+    global _ACTIVE_SQLITE_DB_PATH
+    payload = request.get_json(silent=True) or {}
+    filename = Path(str(payload.get("filename", "database.db"))).name
+    if not filename.lower().endswith((".db", ".sqlite", ".sqlite3")):
+        return jsonify({"ok": False, "error": "Please select a .db, .sqlite, or .sqlite3 file."}), 400
+    encoded = payload.get("data", "")
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+        if not raw.startswith(b"SQLite format 3\x00"):
+            raise ValueError("This file is not a valid SQLite database.")
+        private_files = Path("/data/data/com.meraj.jupyternotebook/files")
+        candidates = []
+        if private_files.is_dir(): candidates.append(private_files / "NiceCoding" / "database")
+        candidates.append(Path(__file__).resolve().parent / "NiceCoding" / "database")
+        target = None
+        for folder in candidates:
+            try:
+                folder.mkdir(parents=True, exist_ok=True)
+                probe = folder / ".write_test"
+                probe.write_text("ok", encoding="utf-8")
+                probe.unlink(missing_ok=True)
+                target = folder / filename
+                break
+            except Exception:
+                continue
+        if target is None:
+            raise OSError("Cannot write to NiceCoding/database folder.")
+        target.write_bytes(raw)
+        with _sqlite3.connect(str(target), timeout=10) as connection:
+            check = connection.execute("PRAGMA quick_check").fetchone()[0]
+            if check != "ok": raise ValueError("SQLite database integrity check failed: " + str(check))
+            tables = [row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+        _ACTIVE_SQLITE_DB_PATH = str(target)
+        return jsonify({"ok": True, "filename": filename, "path": str(target), "tables": tables})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
 def _split_sql_statements(script):
     """Split SQL at semicolons outside strings, quoted identifiers and comments."""
     statements, start, i = [], 0, 0
@@ -452,7 +497,7 @@ def run_sql_query():
     statements = _split_sql_statements(sql)
     if not statements:
         return jsonify({"ok": True, "output": "No SQL statement to execute.", "html": "", "final_val": ""})
-    db_path = _nicecoding_sqlite_db_path()
+    db_path = _active_sqlite_db_path()
     try:
         messages, html_parts = [], []
         with _SQLITE_DB_LOCK:

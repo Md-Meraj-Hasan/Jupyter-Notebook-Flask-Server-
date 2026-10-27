@@ -44,7 +44,8 @@ public class MainActivity extends Activity {
     private static final int CREATE_DOCUMENT_REQUEST = 1002;
     private static final int DATA_FOLDER_REQUEST = 1003;
     private static final int NICECODING_TREE_REQUEST = 1004;
-    private byte[] pendingDownloadBytes;
+    // Pending Save/Save As payload is staged on app-local disk, not retained in RAM.
+    private File pendingDownloadTempFile;
     private String pendingSaveKey;
     private String pendingSaveMime;
     private boolean pendingSaveAs;
@@ -96,11 +97,13 @@ public class MainActivity extends Activity {
                                     edit.putString(saveKeyWithFilename(finalKey, savedName), created.toString()).apply();
                                 }
                                 writeBytes(new File(workspaceLocalDir(workspaceName), savedName), decoded);
+                                cleanupTemporaryWorkspaceFiles(workspaceName);
                                 if (webView != null) webView.evaluateJavascript(
                                     "window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'Saved in Downloads/NiceCoding', '" + jsSafe(savedName) + "')", null);
                                 return;
                             }
                             writeBytes(new File(workspaceLocalDir(workspaceName), finalName), decoded);
+                            cleanupTemporaryWorkspaceFiles(workspaceName);
                             if (webView != null) webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'Saved in Downloads/NiceCoding', '" + jsSafe(finalName) + "')", null);
                             return;
                         } catch (Exception storageError) {
@@ -123,7 +126,19 @@ public class MainActivity extends Activity {
                             // If the stored destination was removed or revoked, ask for a new one.
                         }
                     }
-                    pendingDownloadBytes = decoded;
+                    // Stage pending content in persistent app-local storage while the Save dialog is open.
+                    // This avoids keeping the full document payload in a long-lived byte[] in memory.
+                    File pendingDir = new File(getFilesDir(), "NiceCoding/.pending");
+                    if (!pendingDir.exists() && !pendingDir.mkdirs()) {
+                        notifyJs(false, "Cannot create local temporary storage");
+                        return;
+                    }
+                    File stagedFile = File.createTempFile("save_", ".tmp", pendingDir);
+                    try (FileOutputStream stagedOutput = new FileOutputStream(stagedFile)) {
+                        stagedOutput.write(decoded);
+                        stagedOutput.flush();
+                    }
+                    pendingDownloadTempFile = stagedFile;
                     pendingSaveKey = finalKey;
                     pendingSaveMime = finalMime;
                     pendingSaveAs = saveAs;
@@ -135,7 +150,7 @@ public class MainActivity extends Activity {
                     try {
                         startActivityForResult(intent, CREATE_DOCUMENT_REQUEST);
                     } catch (Exception e) {
-                        pendingDownloadBytes = null; pendingSaveKey = null;
+                        deletePendingDownloadTempFile(); pendingSaveKey = null;
                         if (webView != null) webView.evaluateJavascript(
                                 "window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Cannot open Save dialog')", null);
                     }
@@ -611,29 +626,43 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == CREATE_DOCUMENT_REQUEST) {
-            byte[] bytes = pendingDownloadBytes;
+            File stagedFile = pendingDownloadTempFile;
             String saveKey = pendingSaveKey;
-            pendingDownloadBytes = null;
+            pendingDownloadTempFile = null;
             pendingSaveKey = null;
-            if (resultCode == RESULT_OK && data != null && data.getData() != null && bytes != null) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null && stagedFile != null && stagedFile.isFile()) {
                 Uri uri = data.getData();
                 try {
                     int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                     try { getContentResolver().takePersistableUriPermission(uri, takeFlags); } catch (Exception ignored) { }
-                    try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                    try (OutputStream output = getContentResolver().openOutputStream(uri, "wt");
+                         java.io.InputStream input = new java.io.FileInputStream(stagedFile)) {
                         if (output == null) throw new java.io.IOException("Unable to open selected destination");
-                        output.write(bytes);
+                        byte[] buffer = new byte[8192];
+                        int count;
+                        while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
                         output.flush();
                     }
-                    if (saveKey != null) getSharedPreferences("saved_file_uris", MODE_PRIVATE).edit().putString(saveKey, uri.toString()).apply();
+                    if (saveKey != null) {
+                        getSharedPreferences("saved_file_uris", MODE_PRIVATE).edit().putString(saveKey, uri.toString()).apply();
+                        String workspaceName = saveKey.startsWith("python:") ? "python"
+                                : (saveKey.startsWith("web:") ? "web"
+                                : (saveKey.startsWith("sql:") ? "sqlite" : "notebook"));
+                        cleanupTemporaryWorkspaceFiles(workspaceName);
+                    }
+                    deleteTempFile(stagedFile);
                     if (webView != null) webView.evaluateJavascript(
                             "window.onNativeDownloadResult && window.onNativeDownloadResult(true, 'File saved successfully')", null);
                 } catch (Exception e) {
+                    deleteTempFile(stagedFile);
                     if (webView != null) webView.evaluateJavascript(
                             "window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Could not save file')", null);
                 }
-            } else if (webView != null) {
-                webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Save cancelled')", null);
+            } else {
+                deleteTempFile(stagedFile);
+                if (webView != null) {
+                    webView.evaluateJavascript("window.onNativeDownloadResult && window.onNativeDownloadResult(false, 'Save cancelled')", null);
+                }
             }
             return;
         }
@@ -694,6 +723,58 @@ public class MainActivity extends Activity {
     private String jsSafe(String value) {
         if (value == null) return "unknown error";
         return value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ").replace("\r", " ");
+    }
+
+    private void deletePendingDownloadTempFile() {
+        File stagedFile = pendingDownloadTempFile;
+        pendingDownloadTempFile = null;
+        deleteTempFile(stagedFile);
+    }
+
+    private void deleteTempFile(File file) {
+        if (file == null) return;
+        try { if (file.exists()) file.delete(); } catch (Exception ignored) { }
+        File parent = file.getParentFile();
+        if (parent != null && parent.isDirectory()) {
+            File[] remaining = parent.listFiles();
+            if (remaining != null && remaining.length == 0) {
+                try { parent.delete(); } catch (Exception ignored) { }
+            }
+        }
+    }
+
+    // Remove only temporary working files after a successful Save / Save As.
+    // Normal project files and user documents are deliberately left untouched.
+    private void cleanupTemporaryWorkspaceFiles(String workspaceName) {
+        try {
+            File workspace = workspaceLocalDir(workspaceName);
+            cleanupTemporaryFilesRecursively(workspace);
+        } catch (Exception ignored) {
+            // Cleanup must never turn a successful save into a failed save.
+        }
+    }
+
+    private void cleanupTemporaryFilesRecursively(File directory) {
+        if (directory == null || !directory.exists() || !directory.isDirectory()) return;
+        File[] children = directory.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (child.isDirectory()) {
+                cleanupTemporaryFilesRecursively(child);
+                continue;
+            }
+            String name = child.getName().toLowerCase(java.util.Locale.ROOT);
+            boolean temporary = name.endsWith(".tmp")
+                    || name.endsWith(".temp")
+                    || name.endsWith(".part")
+                    || name.startsWith("~$")
+                    || name.startsWith(".tmp")
+                    || name.startsWith("temp_")
+                    || name.startsWith("tmp_");
+            if (temporary) {
+                try { child.delete(); } catch (Exception ignored) { }
+            }
+        }
     }
 
     private void deleteTree(File file) {

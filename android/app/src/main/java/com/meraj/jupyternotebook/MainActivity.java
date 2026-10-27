@@ -133,10 +133,16 @@ public class MainActivity extends Activity {
                         notifyJs(false, "Cannot create local temporary storage");
                         return;
                     }
-                    File stagedFile = File.createTempFile("save_", ".tmp", pendingDir);
-                    try (FileOutputStream stagedOutput = new FileOutputStream(stagedFile)) {
-                        stagedOutput.write(decoded);
-                        stagedOutput.flush();
+                    File stagedFile;
+                    try {
+                        stagedFile = File.createTempFile("save_", ".tmp", pendingDir);
+                        try (FileOutputStream stagedOutput = new FileOutputStream(stagedFile)) {
+                            stagedOutput.write(decoded);
+                            stagedOutput.flush();
+                        }
+                    } catch (java.io.IOException stagingError) {
+                        notifyJs(false, "Cannot stage temporary file in local storage: " + stagingError.getMessage());
+                        return;
                     }
                     pendingDownloadTempFile = stagedFile;
                     pendingSaveKey = finalKey;

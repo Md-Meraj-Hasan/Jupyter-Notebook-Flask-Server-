@@ -863,13 +863,13 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             const text = String(e.target.result || '');
             try {
                 if (window.AndroidDownloads && typeof window.AndroidDownloads.importTextFile === 'function') {
-                    const activeWs = ext === 'py' ? 'python' : (['html','htm','css','js','mjs'].includes(ext) ? 'web' : (ext === 'sql' ? 'sqlite' : 'notebook'));
+                    const activeWs = ['py','pyw','txt','md','log','csv','xml','java','kt','c','cpp','h','php','yaml','yml'].includes(ext) ? 'python' : (['html','htm','css','js','mjs'].includes(ext) ? 'web' : (ext === 'sql' ? 'sqlite' : 'notebook'));
                     const b64 = btoa(unescape(encodeURIComponent(text)));
                     window.AndroidDownloads.importTextFile(name, 'text/plain', b64, activeWs);
                 }
             } catch (storageImportError) { /* File open should continue even if storage sync fails. */ }
             try {
-                if (['py'].includes(ext)) {
+                if (['py','pyw','txt','md','log','csv','xml','java','kt','c','cpp','h','php','yaml','yml'].includes(ext)) {
                     selectWorkspace('python');
                     if (!scriptEditor) selectWorkspace('python');
                     if (scriptEditor) scriptEditor.setValue(text);
@@ -909,7 +909,15 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                         cellsToLoad = parsed.worksheets.flatMap(sheet => Array.isArray(sheet.cells) ? sheet.cells : []).map(cell => ({
                             source: Array.isArray(cell.source) ? cell.source.join('') : (typeof cell.source === 'string' ? cell.source : ''), language: 'python'
                         }));
-                    } else throw new Error('Unsupported JSON. Notebook JSON must contain a cells array.');
+                    } else {
+                        // Ordinary JSON data/config files remain editable as text.
+                        selectWorkspace('python');
+                        if (!scriptEditor) selectWorkspace('python');
+                        if (scriptEditor) scriptEditor.setValue(text);
+                        else document.getElementById('script-code').value = text;
+                        currentFileName = name;
+                        return;
+                    }
                     document.getElementById('notebook').innerHTML = '';
                     cellCount = 0; editors = {};
                     cellsToLoad.forEach(cell => addNewCell(cell.source, cell.language));

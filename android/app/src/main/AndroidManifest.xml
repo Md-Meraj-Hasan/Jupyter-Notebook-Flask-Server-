@@ -17,6 +17,21 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="text/x-python" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="text/css" />
+                <data android:mimeType="text/javascript" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/x-ipynb+json" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="application/sql" />
+                <data android:mimeType="text/x-sql" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>

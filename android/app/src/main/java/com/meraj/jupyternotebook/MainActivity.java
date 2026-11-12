@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
     private String pendingSaveMime;
     private boolean pendingSaveAs;
     private boolean niceCodingSetupPromptLaunched = false;
+    private Uri pendingExternalFileUri;
 
     /** Native bridge for downloads, because Android WebView does not reliably honor
      *  HTMLAnchorElement.download for data/blob URLs. */
@@ -504,6 +505,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        acceptExternalFileIntent(getIntent());
         getWindow().setStatusBarColor(Color.rgb(247, 247, 247));
         getWindow().setNavigationBarColor(Color.BLACK);
 
@@ -567,6 +569,7 @@ public class MainActivity extends Activity {
             @Override public void onPageFinished(WebView view, String url) {
                 if (url.startsWith("http://127.0.0.1:8000") || url.startsWith("http://localhost:8000")) {
                     pageLoaded = true;
+                    openPendingExternalFile();
                     startupScreen.setVisibility(View.GONE);
                     webView.setVisibility(View.VISIBLE);
                     // First launch only: ask the user to grant persistent access to Downloads.
@@ -627,6 +630,77 @@ public class MainActivity extends Activity {
         }, "wait-for-python-server");
         waitThread.setDaemon(true);
         waitThread.start();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        acceptExternalFileIntent(intent);
+    }
+
+    private void acceptExternalFileIntent(Intent incoming) {
+        if (incoming == null || !(Intent.ACTION_VIEW.equals(incoming.getAction()) || Intent.ACTION_SEND.equals(incoming.getAction()))) return;
+        Uri uri = incoming.getData();
+        if (uri == null) {
+            Object stream = incoming.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (stream instanceof Uri) uri = (Uri) stream;
+        }
+        if (uri == null) return;
+        pendingExternalFileUri = uri;
+        if (pageLoaded) openPendingExternalFile();
+    }
+
+    /** Read the granted content URI and load it through the same editor import path as the file picker. */
+    private void openPendingExternalFile() {
+        final Uri uri = pendingExternalFileUri;
+        if (uri == null || !pageLoaded || webView == null) return;
+        pendingExternalFileUri = null;
+        Thread worker = new Thread(() -> {
+            try {
+                String name = null;
+                try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                    if (cursor != null) {
+                        int index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                        if (index >= 0 && cursor.moveToFirst()) name = cursor.getString(index);
+                    }
+                }
+                if (name == null || name.trim().isEmpty()) name = uri.getLastPathSegment();
+                if (name == null) name = "untitled.txt";
+                name = safeFilename(name);
+                String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
+                if (!java.util.Arrays.asList("py", "html", "htm", "css", "js", "mjs", "sql", "ipynb", "json").contains(ext)) {
+                    throw new java.io.IOException("Unsupported file type: ." + ext);
+                }
+                byte[] bytes;
+                try (InputStream input = getContentResolver().openInputStream(uri)) {
+                    if (input == null) throw new java.io.IOException("Android could not open this file");
+                    java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+                    byte[] buffer = new byte[8192]; int count;
+                    while ((count = input.read(buffer)) != -1) {
+                        if (output.size() + count > 10 * 1024 * 1024) throw new java.io.IOException("File is larger than 10 MB");
+                        output.write(buffer, 0, count);
+                    }
+                    bytes = output.toByteArray();
+                }
+                String base64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
+                final String finalName = name;
+                final String finalBase64 = base64;
+                handler.post(() -> {
+                    if (webView != null && pageLoaded) {
+                        String js = "window.openExternalNiceCodingFile && window.openExternalNiceCodingFile("
+                                + org.json.JSONObject.quote(finalName) + ","
+                                + org.json.JSONObject.quote(finalBase64) + ")";
+                        webView.evaluateJavascript(js, null);
+                    }
+                });
+            } catch (Exception e) {
+                android.util.Log.e("NiceCoding", "External file open failed", e);
+                handler.post(() -> notifyJs(false, "Could not open file: " + e.getMessage()));
+            }
+        }, "nicecoding-external-file");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     @Override

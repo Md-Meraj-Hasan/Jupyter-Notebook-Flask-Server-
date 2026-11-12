@@ -925,6 +925,19 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         reader.readAsText(file);
     }
     function loadFromFile(event) { loadCurrentFile(event); }
+    // Android ACTION_VIEW bridge: decode the original UTF-8 text and reuse the
+    // exact same extension-aware loader used by the normal Open File picker.
+    window.openExternalNiceCodingFile = function(name, base64) {
+        try {
+            const binary = atob(base64 || '');
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const file = new File([bytes], name || 'untitled.txt', {type: 'text/plain'});
+            loadCurrentFile({target: {files: [file], value: ''}});
+        } catch (error) {
+            alert('Could not open shared file: ' + (error.message || 'unknown error'));
+        }
+    };
 
     function moveCellUp(id) {
         const cell = document.getElementById(`cell-${id}`);

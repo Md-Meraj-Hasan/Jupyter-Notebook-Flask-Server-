@@ -215,7 +215,7 @@ public class MainActivity extends Activity {
                 File rootDir = workspaceLocalDir("python").getCanonicalFile();
                 if (!rootDir.exists()) rootDir.mkdirs();
                 File dir = new File(rootDir, relativePath == null ? "" : relativePath).getCanonicalFile();
-                if (!dir.toPath().startsWith(rootDir.toPath()) || !dir.isDirectory()) return "[]";
+                if (!isWithinDirectory(rootDir, dir, true) || !dir.isDirectory()) return "[]";
                 File[] files = dir.listFiles();
                 JSONArray result = new JSONArray();
                 if (files == null) return result.toString();
@@ -242,9 +242,17 @@ public class MainActivity extends Activity {
             try {
                 File rootDir = workspaceLocalDir("python").getCanonicalFile();
                 File file = new File(rootDir, relativePath == null ? "" : relativePath).getCanonicalFile();
-                if (!file.toPath().startsWith(rootDir.toPath()) || !file.isFile() || file.length() > 2 * 1024 * 1024) return null;
-                byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
-                return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                if (!isWithinDirectory(rootDir, file, false) || !file.isFile() || file.length() > 2 * 1024 * 1024) return null;
+                try (InputStream input = new java.io.FileInputStream(file);
+                     java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
+                    byte[] buffer = new byte[8192];
+                    int count;
+                    while ((count = input.read(buffer)) != -1) {
+                        if (output.size() + count > 2 * 1024 * 1024) return null;
+                        output.write(buffer, 0, count);
+                    }
+                    return new String(output.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+                }
             } catch (Exception e) {
                 return null;
             }
@@ -257,7 +265,7 @@ public class MainActivity extends Activity {
                 String rel = relativePath == null ? "" : relativePath.replace('\\', '/');
                 File rootDir = workspaceLocalDir("python").getCanonicalFile();
                 File target = new File(rootDir, rel).getCanonicalFile();
-                if (!target.toPath().startsWith(rootDir.toPath()) || target.equals(rootDir))
+                if (!isWithinDirectory(rootDir, target, false))
                     throw new java.io.IOException("Invalid workspace path");
                 File parent = target.getParentFile();
                 if (parent == null || (!parent.exists() && !parent.mkdirs()) || !parent.isDirectory())
@@ -881,6 +889,15 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    /** API 24-compatible canonical path containment check (avoids java.nio.file.Path, API 26+). */
+    private boolean isWithinDirectory(File root, File candidate, boolean allowRoot) throws java.io.IOException {
+        String rootPath = root.getCanonicalPath();
+        String candidatePath = candidate.getCanonicalPath();
+        if (allowRoot && candidatePath.equals(rootPath)) return true;
+        return candidatePath.startsWith(rootPath.endsWith(File.separator)
+                ? rootPath : rootPath + File.separator);
     }
 
     private String jsSafe(String value) {

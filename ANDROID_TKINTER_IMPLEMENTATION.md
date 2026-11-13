@@ -68,3 +68,18 @@ Important integration risks discovered:
 ## Safety boundary
 
 This branch is intentionally isolated. Do not add a fake `tkinter.py` shim or silently map Tk widgets to HTML: that would make imports appear to work while breaking real Tkinter semantics. Do not change the existing Python version, Chaquopy package set, Flask endpoint, or MainActivity startup path until the native runtime spike is proven.
+
+## Licensing and packaging note
+
+Tcl/Tk itself uses a permissive BSD-style license, but AndroWish is a bundle of multiple upstream components. Before redistributing any copied SDK assets or native binaries, inventory every bundled component and preserve its own license and copyright notices (including SDL, AGG, Freetype, Tcl/Tk, and bundled extensions). Do not assume the Tcl/Tk license covers the entire AndroWish bundle.
+
+The upstream AndroWish documentation explicitly describes reusing its runtime assets and modified Java glue in another Android app. This gives us a plausible packaging route for the Tcl/Tk side, but it does not solve the CPython bridge or guarantee that its Java Activity can be merged directly into NiceCoding's existing Activity.
+
+## Repository files inspected
+
+- `android/app/build.gradle`: Chaquopy 17.1.0, Python 3.10, ABI filters `arm64-v8a` and `armeabi-v7a`.
+- `android/app/src/main/java/com/meraj/jupyternotebook/MainActivity.java`: existing WebView, local Python startup, storage/file bridges, and Android Back handling.
+- `jupyter.py`: existing Flask `/run` and `/run-sql` routes.
+- `.github/workflows/build-apk.yml`: Java 17, Python 3.10, Gradle 8.13, debug APK workflow.
+
+No production source files or build configuration have been changed on this branch. Only this implementation/research document is being updated until the native feasibility proof works.

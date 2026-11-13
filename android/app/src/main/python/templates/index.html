@@ -629,7 +629,8 @@ function openVimGui(){
   setTimeout(()=>{vimGuiEditor.refresh();vimGuiEditor.focus();},60);
 }
 function closeVimGui(){
-  if(vimGuiDirty && !confirm('Unsaved changes. Close Vim GUI?')) return;
+  const dirtyDocs=vimGuiDocs.filter(d=>d.dirty);
+  if(dirtyDocs.length && !confirm('There are '+dirtyDocs.length+' unsaved Vim file(s). Close Vim GUI?')) return;
   document.getElementById('vim-gui-page').style.display='none';
 }
 function vimGuiAddDoc(name,content,dirty){

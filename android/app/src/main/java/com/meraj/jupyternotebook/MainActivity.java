@@ -251,6 +251,46 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void saveVimWorkspaceFile(String relativePath, String base64Data) {
+            try {
+                byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
+                String rel = relativePath == null ? "" : relativePath.replace('\\\\', '/');
+                File rootDir = workspaceLocalDir("python").getCanonicalFile();
+                File target = new File(rootDir, rel).getCanonicalFile();
+                if (!target.toPath().startsWith(rootDir.toPath()) || target.equals(rootDir))
+                    throw new java.io.IOException("Invalid workspace path");
+                File parent = target.getParentFile();
+                if (parent == null || (!parent.exists() && !parent.mkdirs()) || !parent.isDirectory())
+                    throw new java.io.IOException("Cannot create workspace folder");
+                writeBytes(target, bytes);
+                String folderText = getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("folder_python", null);
+                if (folderText != null) {
+                    Uri treeUri = Uri.parse(getSharedPreferences("nicecoding_storage", MODE_PRIVATE).getString("tree_uri", folderText));
+                    Uri folder = Uri.parse(folderText);
+                    String[] parts = rel.split("/");
+                    for (int i = 0; i < parts.length - 1; i++) {
+                        if (parts[i].isEmpty() || parts[i].equals(".") || parts[i].equals("..")) throw new java.io.IOException("Invalid folder path");
+                        folder = findOrCreateDirectory(treeUri, folder, parts[i]);
+                    }
+                    String filename = parts[parts.length - 1];
+                    if (filename.isEmpty() || filename.equals(".") || filename.equals("..")) throw new java.io.IOException("Invalid file name");
+                    writeSafFile(folder, filename, "text/plain", bytes, true);
+                }
+                final String savedPath = rel;
+                handler.post(() -> {
+                    if (webView != null) webView.evaluateJavascript(
+                        "window.onVimWorkspaceSaveResult && window.onVimWorkspaceSaveResult(true, '" + jsSafe(savedPath) + "')", null);
+                });
+            } catch (Exception e) {
+                final String error = jsSafe(e.getMessage() == null ? "Workspace save failed" : e.getMessage());
+                handler.post(() -> {
+                    if (webView != null) webView.evaluateJavascript(
+                        "window.onVimWorkspaceSaveResult && window.onVimWorkspaceSaveResult(false, '" + error + "')", null);
+                });
+            }
+        }
+
+        @JavascriptInterface
         public void setActiveWorkspace(String workspace) {
             final String name = safeWorkspace(workspace);
             handler.post(() -> {

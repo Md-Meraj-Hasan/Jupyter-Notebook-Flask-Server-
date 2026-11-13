@@ -83,3 +83,21 @@ The upstream AndroWish documentation explicitly describes reusing its runtime as
 - `.github/workflows/build-apk.yml`: Java 17, Python 3.10, Gradle 8.13, debug APK workflow.
 
 No production source files or build configuration have been changed on this branch. Only this implementation/research document is being updated until the native feasibility proof works.
+
+## Verified official documentation (2026-11-13)
+
+- Chaquopy's current standard-library support list explicitly marks `tkinter` and `turtle` unsupported because the runtime does not include the required libraries. This confirms that adding a PyPI package is not the fix.
+- Python's Android platform documentation / PEP 738 explains that Tkinter would require an Android build of Tk itself; it is not part of the officially supported Android standard-library set.
+- AndroWish's official release page identifies the 2024 release (2024-03-06) as Tcl/Tk 8.6.10 + patched SDL 2.0.6. Its documentation describes its Java Activity/JNI/native-library architecture and says its assets and modified Java glue can be reused by other apps; it also points to the `hellotcltk` demo.
+- These sources support a Tcl/Tk Android port as a candidate, but do not establish binary compatibility with Chaquopy CPython 3.10.
+
+References:
+- Chaquopy Android docs: https://chaquo.com/chaquopy/doc/current/android.html
+- Python Android platform / PEP 738: https://peps.python.org/pep-0738/
+- AndroWish releases: https://androwish.org/home/wiki?name=Releases
+- AndroWish architecture and reuse notes: https://androwish.org/home/raw/8999948f92969d6b3621412a8d617c5e47139ad4
+- AndroWish source tree and architecture: https://androwish.org/home/dir
+
+## Build decision for this iteration
+
+Do not add `tkinter` to the Gradle pip list, do not change the Chaquopy Python version, and do not modify `MainActivity.java` yet. The missing deliverable is a tested Android CPython 3.10 `_tkinter` extension plus a compatible Tcl/Tk runtime and a viable Android event-loop/window integration. The next code change should follow only after the exact upstream source and build toolchain are pinned and an isolated arm64 proof-of-concept compiles.

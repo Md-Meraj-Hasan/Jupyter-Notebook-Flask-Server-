@@ -324,6 +324,11 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 <script>
 (function(){if(!window.CodeMirror)return;CodeMirror.defineMode("sql",function(){var keywords=/^(SELECT|FROM|WHERE|AND|OR|NOT|NULL|IS|IN|LIKE|GLOB|BETWEEN|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|DISTINCT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|IF|EXISTS|DROP|ALTER|ADD|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|INDEX|VIEW|TRIGGER|DATABASE|PRAGMA|BEGIN|COMMIT|ROLLBACK|TRANSACTION|AUTOINCREMENT|DEFAULT|CHECK|CASE|WHEN|THEN|ELSE|END|UNION|ALL|COUNT|SUM|AVG|MIN|MAX|ASC|DESC|WITH)\b/i;return {token:function(stream){if(stream.eatSpace())return null;if(stream.match(/--.*/))return "comment";if(stream.match(/\/\*[\s\S]*?\*\//))return "comment";if(stream.match(/'(?:''|[^'])*'/))return "string";if(stream.match(/"(?:""|[^"])*"/))return "string";if(stream.match(/`[^`]*`/))return "string";if(stream.match(/\b\d+(?:\.\d+)?\b/))return "number";if(stream.match(keywords))return "keyword";if(stream.match(/[(),.;*+\/-]/))return "operator";stream.next();return null;}};});})();
 </script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vim-dialog.css') }}">
+<script src="{{ url_for('static', filename='js/vim-searchcursor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vim-dialog.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vim-keymap.js') }}"></script>
 </head>
 <body>
 
@@ -347,6 +352,8 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         <div onclick="selectWorkspace('python')">🐍 Python</div>
         <div onclick="selectWorkspace('web')">🌐 HTML, CSS &amp; JavaScript</div>
         <div onclick="selectWorkspace('sqlite')">🗄️ SQLite3 / SQL</div>
+        <div onclick="openVimGui()">⌨️ Vim GUI Editor</div>
+        <div onclick="openVimTerminalInfo()">▣ Vim Terminal (Native)</div>
       </div>
     </div>
     <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶ Run</button>
@@ -560,7 +567,208 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                 ? doc.replace(/<head([^>]*)>/i, `<head$1>${styleTag}`)
                 : doc.replace(/<html([^>]*)>/i, `<html$1><head>${styleTag}</head>`);
         } else {
-            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag}</head><body>${doc}</body></html>`;
+            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag}</head><body>${doc}
+<div id="vim-gui-page" style="display:none;position:fixed;inset:0;z-index:30000;background:var(--bg-body);color:var(--text-main);">
+  <style>#vim-gui-page .CodeMirror{height:calc(100% - 82px);font-size:14px}#vim-gui-page .CodeMirror-scroll{min-height:100%;}#vim-gui-page .CodeMirror-dialog{z-index:20}</style>
+  <div style="height:48px;display:flex;align-items:center;gap:6px;padding:4px 8px;box-sizing:border-box;background:var(--toolbar-bg);border-bottom:1px solid var(--border-color);overflow-x:auto;">
+    <button class="btn" onclick="closeVimGui()">← Back</button>
+    <strong style="white-space:nowrap">Vim GUI</strong>
+    <span id="vim-gui-filename" style="font-size:12px;opacity:.75;white-space:nowrap">[No Name]</span>
+    <span style="flex:1"></span>
+    <button class="btn" onclick="newVimGuiFile()">New</button>
+    <button class="btn" onclick="document.getElementById('vim-gui-open').click()">Open</button>
+    <button class="btn" onclick="saveVimGuiFile()">Save</button>
+    <button class="btn" onclick="saveVimGuiFile(true)">Save As</button>
+  </div>
+  <div id="vim-gui-tabs" style="height:34px;display:flex;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;background:var(--toolbar-bg);border-bottom:1px solid var(--border-color);"></div>
+  <div style="height:calc(100% - 116px);display:flex;min-height:0;">
+    <aside style="width:150px;max-width:34vw;display:flex;flex-direction:column;border-right:1px solid var(--border-color);background:var(--toolbar-bg);">
+      <div style="display:flex;gap:4px;padding:5px;"><button class="btn" onclick="showVimPanel('workspace')">WORKSPACE</button><button class="btn" onclick="showVimPanel('opened')">OPEN FILES</button></div>
+      <div id="vim-gui-workspace" style="overflow:auto;flex:1;font-size:12px;"></div>
+      <div id="vim-gui-file-list" style="overflow:auto;flex:1;font-size:12px;display:none;"></div>
+      <div style="display:flex;gap:4px;padding:5px;"><button class="btn" onclick="loadVimWorkspace(vimWorkspacePath)">↻</button><button class="btn" onclick="document.getElementById('vim-gui-open').click()">＋ Open file</button></div>
+    </aside>
+    <div style="flex:1;min-width:0;"><textarea id="vim-gui-source"></textarea></div>
+  </div>
+  <div style="height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--toolbar-bg);border-top:1px solid var(--border-color);font:12px monospace;">
+    <span id="vim-gui-mode">NORMAL</span><span id="vim-gui-message" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Vim keybindings ready</span>
+    <button class="btn" onclick="vimGuiKey('Escape')">Esc</button>
+    <button class="btn" onclick="vimGuiKey(':')">:</button>
+  </div>
+  <input id="vim-gui-open" type="file" style="display:none" onchange="loadVimGuiFile(event)">
+</div>
+
+<script>
+let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false, vimGuiCloseAfterSave=false, vimGuiPendingSave=null, vimGuiSwitching=false, vimGuiDocs=[], vimGuiActiveId=0, vimGuiNextId=1;
+function openVimGui(){
+  document.getElementById('mode-menu').style.display='none';
+  const page=document.getElementById('vim-gui-page'); page.style.display='block';
+  if(!vimGuiEditor){
+    vimGuiEditor=CodeMirror.fromTextArea(document.getElementById('vim-gui-source'),{
+      lineNumbers:true,matchBrackets:true,styleActiveLine:true,showCursorWhenSelecting:true,
+      keyMap:'vim',theme:document.body.classList.contains('night-mode')?'material-darker':'neo',
+      lineWrapping:false,indentUnit:4,tabSize:4,viewportMargin:20
+    });
+    vimGuiEditor.on('change',()=>{if(vimGuiSwitching)return;vimGuiDirty=true;const d=vimGuiDocs.find(x=>x.id===vimGuiActiveId);if(d){d.content=vimGuiEditor.getValue();d.dirty=true;}updateVimGuiName();renderVimGuiFiles();});
+    CodeMirror.commands.save=()=>saveVimGuiFile();
+    if(CodeMirror.Vim && CodeMirror.Vim.defineEx){
+      CodeMirror.Vim.defineEx('write','w',()=>saveVimGuiFile());
+      CodeMirror.Vim.defineEx('quit','q',()=>closeVimGui());
+      CodeMirror.Vim.defineEx('wq','wq',()=>{if(vimGuiDirty || !vimGuiFilename){vimGuiCloseAfterSave=true;saveVimGuiFile();}else{closeVimGui();}});
+    }
+    CodeMirror.on(vimGuiEditor,'vim-mode-change',e=>{
+      document.getElementById('vim-gui-mode').textContent=(e&&e.mode?e.mode:'NORMAL').toUpperCase();
+    });
+    CodeMirror.on(vimGuiEditor,'vim-keypress',key=>{
+      document.getElementById('vim-gui-message').textContent='Key: '+key;
+    });
+    CodeMirror.on(vimGuiEditor,'vim-command-done',()=>{
+      document.getElementById('vim-gui-message').textContent='Ready';
+    });
+  }
+  if(!vimGuiDocs.length) vimGuiAddDoc('[No Name]','',false);
+  showVimPanel('workspace');loadVimWorkspace('');
+  setTimeout(()=>{vimGuiEditor.refresh();vimGuiEditor.focus();},60);
+}
+function closeVimGui(){
+  const dirtyDocs=vimGuiDocs.filter(d=>d.dirty);
+  if(dirtyDocs.length && !confirm('There are '+dirtyDocs.length+' unsaved Vim file(s). Close Vim GUI?')) return;
+  document.getElementById('vim-gui-page').style.display='none';
+}
+function vimGuiAddDoc(name,content,dirty){
+  const doc={id:vimGuiNextId++,name:name||'[No Name]',content:content||'',dirty:!!dirty};
+  vimGuiDocs.push(doc);vimGuiActivateDoc(doc.id);return doc;
+}
+function vimGuiActivateDoc(id){
+  const doc=vimGuiDocs.find(x=>x.id===id);if(!doc||!vimGuiEditor)return;
+  const current=vimGuiDocs.find(x=>x.id===vimGuiActiveId);
+  if(current){current.content=vimGuiEditor.getValue();current.dirty=vimGuiDirty;}
+  vimGuiActiveId=doc.id;vimGuiSwitching=true;vimGuiEditor.setValue(doc.content);vimGuiSwitching=false;
+  vimGuiFilename=doc.name==='[No Name]'?'':doc.name;vimGuiDirty=doc.dirty;updateVimGuiName();renderVimGuiFiles();vimGuiEditor.focus();
+}
+let vimWorkspacePath='';
+function showVimPanel(which){
+  const workspace=document.getElementById('vim-gui-workspace'),opened=document.getElementById('vim-gui-file-list');
+  if(workspace)workspace.style.display=which==='workspace'?'block':'none';
+  if(opened)opened.style.display=which==='opened'?'block':'none';
+}
+function loadVimWorkspace(path){
+  vimWorkspacePath=String(path||'').replace(/^\\/+|\\/+$/g,'');
+  const box=document.getElementById('vim-gui-workspace');if(!box)return;
+  box.innerHTML='Loading workspace…';
+  if(!window.AndroidDownloads||typeof AndroidDownloads.listVimWorkspace!=='function'){box.textContent='Workspace browser is available in the Android app.';return;}
+  try{
+    if(typeof AndroidDownloads.syncWorkspaceFiles==='function')AndroidDownloads.syncWorkspaceFiles('python');
+    const entries=JSON.parse(AndroidDownloads.listVimWorkspace(vimWorkspacePath)||'[]');box.innerHTML='';
+    const crumb=document.createElement('div');crumb.style.cssText='padding:7px;font-weight:bold;overflow-wrap:anywhere';crumb.textContent='/NiceCoding/'+vimWorkspacePath;box.appendChild(crumb);
+    if(vimWorkspacePath){const up=document.createElement('button');up.className='btn';up.style.cssText='display:block;width:100%;text-align:left;padding:7px';up.textContent='📁 ..';up.onclick=()=>loadVimWorkspace(vimWorkspacePath.split('/').slice(0,-1).join('/'));box.appendChild(up);}
+    entries.forEach(entry=>{
+      const row=document.createElement('button');row.className='btn';row.style.cssText='display:block;width:100%;text-align:left;padding:7px;border-radius:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';row.textContent=(entry.directory?'📁 ':'📄 ')+entry.name;row.title=entry.name;
+      row.onclick=()=>{const next=vimWorkspacePath?vimWorkspacePath+'/'+entry.name:entry.name;if(entry.directory){loadVimWorkspace(next);return;}const content=AndroidDownloads.readVimWorkspaceFile(next);if(content===null||content===undefined){alert('Cannot open this file. Files over 2 MB or unreadable files are not supported.');return;}vimGuiAddDoc(entry.name,String(content),false);const d=vimGuiDocs.find(x=>x.id===vimGuiActiveId);if(d)d.workspacePath=next;document.getElementById('vim-gui-message').textContent='Opened '+next;};
+      box.appendChild(row);
+    });
+    if(!entries.length){const empty=document.createElement('div');empty.style.cssText='padding:8px;opacity:.65';empty.textContent='This folder is empty';box.appendChild(empty);}
+  }catch(err){box.textContent='Could not load workspace: '+String(err.message||err);}
+}
+function renderVimGuiFiles(){
+  const tabs=document.getElementById('vim-gui-tabs'),list=document.getElementById('vim-gui-file-list');
+  if(!tabs||!list)return;
+  tabs.innerHTML='';list.innerHTML='';
+  vimGuiDocs.forEach(doc=>{
+    const active=doc.id===vimGuiActiveId;
+    const tab=document.createElement('button');tab.className='btn';tab.style.cssText='white-space:nowrap;padding:4px 7px;'+(active?'font-weight:bold;border-bottom:2px solid #3987e8;':'opacity:.75;');
+    tab.textContent=(doc.name||'[No Name]')+(doc.dirty?' •':'')+' ×';
+    tab.onclick=()=>{if(active){vimGuiCloseDoc(doc.id);}else{vimGuiActivateDoc(doc.id);}};
+    tabs.appendChild(tab);
+    const item=document.createElement('button');item.className='btn';item.style.cssText='display:block;width:100%;text-align:left;border-radius:0;padding:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+(active?'font-weight:bold;':'');
+    item.textContent=(doc.dirty?'● ':'')+doc.name;item.title=doc.name;item.onclick=()=>vimGuiActivateDoc(doc.id);list.appendChild(item);
+  });
+}
+function vimGuiCloseDoc(id){
+  const doc=vimGuiDocs.find(x=>x.id===id);if(!doc)return;
+  if(doc.dirty&&!confirm('Discard unsaved changes in '+doc.name+'?'))return;
+  vimGuiDocs=vimGuiDocs.filter(x=>x.id!==id);
+  if(vimGuiActiveId===id){const next=vimGuiDocs[vimGuiDocs.length-1];if(next)vimGuiActivateDoc(next.id);else{vimGuiActiveId=0;vimGuiSwitching=true;vimGuiEditor.setValue('');vimGuiSwitching=false;vimGuiFilename='';vimGuiDirty=false;}}
+  renderVimGuiFiles();updateVimGuiName();
+}
+function updateVimGuiName(){
+  const doc=vimGuiDocs.find(x=>x.id===vimGuiActiveId);
+  document.getElementById('vim-gui-filename').textContent=(vimGuiFilename||'[No Name]')+(vimGuiDirty?' •':'');
+  if(doc){doc.name=vimGuiFilename||'[No Name]';doc.content=vimGuiEditor?vimGuiEditor.getValue():doc.content;doc.dirty=vimGuiDirty;}
+  renderVimGuiFiles();
+}
+function newVimGuiFile(){
+  if(vimGuiDirty && !confirm('Discard unsaved changes?')) return;
+  vimGuiAddDoc('[No Name]','',false);
+}
+function loadVimGuiFile(event){
+  const file=event.target.files&&event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{vimGuiAddDoc(file.name,String(reader.result||''),false);document.getElementById('vim-gui-message').textContent='Opened '+file.name;vimGuiEditor.focus();};
+  reader.onerror=()=>alert('Could not read selected file.');
+  reader.readAsText(file);event.target.value='';
+}
+window.onVimWorkspaceSaveResult=function(success, savedPath){
+  const pending=vimGuiPendingSave;if(!pending||pending.kind!=='workspace')return;
+  vimGuiSaving=false;vimGuiPendingSave=null;vimGuiCloseAfterSave=false;
+  const doc=vimGuiDocs.find(x=>x.id===pending.docId);
+  if(success){
+    if(doc){doc.workspacePath=savedPath;doc.name=savedPath.split('/').pop();doc.dirty=false;}
+    if(vimGuiActiveId===pending.docId){vimGuiFilename=pending.name;vimGuiDirty=false;updateVimGuiName();}
+    else renderVimGuiFiles();
+    document.getElementById('vim-gui-message').textContent='Saved in workspace: '+savedPath;
+  }else{
+    document.getElementById('vim-gui-message').textContent='Workspace save failed: '+savedPath;
+    alert('Workspace save failed: '+savedPath);
+  }
+};
+function saveVimGuiFile(saveAs){
+  if(!vimGuiEditor)return;
+  let name=vimGuiFilename;
+  if(saveAs||!name){name=prompt('Save file name:',name||'untitled.txt');if(!name)return;}
+  const data=vimGuiEditor.getValue(),mime='text/plain;charset=utf-8';
+  const doc=vimGuiDocs.find(x=>x.id===vimGuiActiveId);
+  if(doc&&doc.workspacePath&&window.AndroidDownloads&&typeof AndroidDownloads.saveVimWorkspaceFile==='function'){
+    const b64=btoa(unescape(encodeURIComponent(data)));
+    const path=saveAs?(vimWorkspacePath?vimWorkspacePath+'/'+name:name):doc.workspacePath;
+    vimGuiSaving=true;vimGuiPendingSave={kind:'workspace',docId:vimGuiActiveId,name:name};
+    document.getElementById('vim-gui-message').textContent='Saving '+path+'…';
+    try{AndroidDownloads.saveVimWorkspaceFile(path,b64);}
+    catch(err){vimGuiSaving=false;vimGuiPendingSave=null;document.getElementById('vim-gui-message').textContent='Save failed';alert('Save failed: '+String(err.message||err));}
+    return;
+  }
+  if(window.AndroidDownloads&&typeof AndroidDownloads.saveBase64File==='function'){
+    const b64=btoa(unescape(encodeURIComponent(data)));
+    if(doc){doc.name=name;doc.content=data;}
+    vimGuiFilename=name;vimGuiSaving=true;
+    vimGuiPendingSave={docId:vimGuiActiveId,name:name,closeAfter:vimGuiCloseAfterSave};
+    updateVimGuiName();
+    document.getElementById('vim-gui-message').textContent='Saving '+name+'…';
+    try {
+      AndroidDownloads.saveBase64File(name,mime,b64,!!saveAs,'python:vim:'+name);
+    } catch(err) {
+      vimGuiSaving=false;vimGuiPendingSave=null;vimGuiCloseAfterSave=false;
+      document.getElementById('vim-gui-message').textContent='Save failed';
+      alert('Save failed: '+(err&&err.message?err.message:String(err)));
+    }
+  }else{
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;a.click();URL.revokeObjectURL(a.href);
+    vimGuiFilename=name;vimGuiDirty=false;
+    if(doc){doc.name=name;doc.content=data;doc.dirty=false;}
+    updateVimGuiName();
+  }
+}
+function vimGuiKey(key){
+  if(!vimGuiEditor)return;
+  if(key==='Escape')CodeMirror.Vim.handleKey(vimGuiEditor,'<Esc>');
+  else if(key===':')CodeMirror.Vim.handleKey(vimGuiEditor,':');
+}
+function openVimTerminalInfo(){
+  document.getElementById('mode-menu').style.display='none';
+  alert('Vim Terminal needs a native Android Vim binary and PTY terminal runtime. This device build does not include those yet; the Vim GUI editor is available.');
+}
+</script>
+</body></html>`;
         }
         frame.srcdoc = rendered;
         outputDiv.appendChild(frame);
@@ -848,8 +1056,45 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     window.onNativeDownloadResult = function(success, message, actualFilename) {
         if (success) {
             if (actualFilename) currentFileName = actualFilename;
+            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) {
+                const pending = vimGuiPendingSave;
+                vimGuiSaving = false;
+                vimGuiPendingSave = null;
+                if (pending) {
+                    const savedDoc = vimGuiDocs.find(x => x.id === pending.docId);
+                    if (savedDoc) {
+                        savedDoc.name = actualFilename || pending.name;
+                        savedDoc.dirty = false;
+                    }
+                    if (vimGuiActiveId === pending.docId) {
+                        vimGuiFilename = actualFilename || pending.name;
+                        vimGuiDirty = false;
+                        updateVimGuiName();
+                    } else {
+                        renderVimGuiFiles();
+                    }
+                    document.getElementById('vim-gui-message').textContent = message || ('Saved ' + (actualFilename || pending.name));
+                    if (pending.closeAfter) {
+                        vimGuiCloseAfterSave = false;
+                        document.getElementById('vim-gui-page').style.display = 'none';
+                    }
+                }
+            }
             alert(message || ("File saved successfully" + (actualFilename ? ": " + actualFilename : "")));
-        } else if (message && message !== "Save cancelled") alert(message);
+        } else if (message && message !== "Save cancelled") {
+            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) {
+                vimGuiSaving = false;
+                vimGuiPendingSave = null;
+                vimGuiCloseAfterSave = false;
+                document.getElementById('vim-gui-message').textContent = message;
+            }
+            alert(message);
+        } else if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) {
+            vimGuiSaving = false;
+            vimGuiPendingSave = null;
+            vimGuiCloseAfterSave = false;
+            document.getElementById('vim-gui-message').textContent = 'Save cancelled';
+        }
     };
     
     function loadCurrentFile(event) {

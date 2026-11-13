@@ -569,6 +569,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         } else {
             rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag}</head><body>${doc}
 <div id="vim-gui-page" style="display:none;position:fixed;inset:0;z-index:30000;background:var(--bg-body);color:var(--text-main);">
+  <style>#vim-gui-page .CodeMirror{height:calc(100% - 82px);font-size:14px}#vim-gui-page .CodeMirror-scroll{min-height:100%;}#vim-gui-page .CodeMirror-dialog{z-index:20}</style>
   <div style="height:48px;display:flex;align-items:center;gap:6px;padding:4px 8px;box-sizing:border-box;background:var(--toolbar-bg);border-bottom:1px solid var(--border-color);overflow-x:auto;">
     <button class="btn" onclick="closeVimGui()">← Back</button>
     <strong style="white-space:nowrap">Vim GUI</strong>
@@ -591,7 +592,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 </div>
 
 <script>
-let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false;
+let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false;
 function openVimGui(){
   document.getElementById('mode-menu').style.display='none';
   const page=document.getElementById('vim-gui-page'); page.style.display='block';
@@ -646,7 +647,7 @@ function saveVimGuiFile(saveAs){
   if(window.AndroidDownloads&&typeof AndroidDownloads.saveBase64File==='function'){
     const b64=btoa(unescape(encodeURIComponent(data)));
     AndroidDownloads.saveBase64File(name,mime,b64,!!saveAs,'python:vim:'+name);
-    vimGuiFilename=name;vimGuiDirty=false;updateVimGuiName();
+    vimGuiFilename=name;vimGuiSaving=true;updateVimGuiName();
     document.getElementById('vim-gui-message').textContent='Saving '+name+'…';
   }else{
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;a.click();URL.revokeObjectURL(a.href);
@@ -951,8 +952,9 @@ function openVimTerminalInfo(){
     window.onNativeDownloadResult = function(success, message, actualFilename) {
         if (success) {
             if (actualFilename) currentFileName = actualFilename;
+            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) { vimGuiSaving = false; vimGuiDirty = false; updateVimGuiName(); document.getElementById('vim-gui-message').textContent = message || 'Saved'; }
             alert(message || ("File saved successfully" + (actualFilename ? ": " + actualFilename : "")));
-        } else if (message && message !== "Save cancelled") alert(message);
+        } else if (message && message !== "Save cancelled") { if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) { vimGuiSaving = false; document.getElementById('vim-gui-message').textContent = message; } alert(message); }
     };
     
     function loadCurrentFile(event) {

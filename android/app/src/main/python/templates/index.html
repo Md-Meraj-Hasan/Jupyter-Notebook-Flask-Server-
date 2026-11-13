@@ -598,7 +598,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 </div>
 
 <script>
-let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false, vimGuiCloseAfterSave=false, vimGuiSwitching=false, vimGuiDocs=[], vimGuiActiveId=0, vimGuiNextId=1;
+let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false, vimGuiCloseAfterSave=false, vimGuiPendingSave=null, vimGuiSwitching=false, vimGuiDocs=[], vimGuiActiveId=0, vimGuiNextId=1;
 function openVimGui(){
   document.getElementById('mode-menu').style.display='none';
   const page=document.getElementById('vim-gui-page'); page.style.display='block';
@@ -687,14 +687,26 @@ function saveVimGuiFile(saveAs){
   let name=vimGuiFilename;
   if(saveAs||!name){name=prompt('Save file name:',name||'untitled.txt');if(!name)return;}
   const data=vimGuiEditor.getValue(),mime='text/plain;charset=utf-8';
+  const doc=vimGuiDocs.find(x=>x.id===vimGuiActiveId);
   if(window.AndroidDownloads&&typeof AndroidDownloads.saveBase64File==='function'){
     const b64=btoa(unescape(encodeURIComponent(data)));
-    AndroidDownloads.saveBase64File(name,mime,b64,!!saveAs,'python:vim:'+name);
-    vimGuiFilename=name;vimGuiSaving=true;updateVimGuiName();
+    if(doc){doc.name=name;doc.content=data;}
+    vimGuiFilename=name;vimGuiSaving=true;
+    vimGuiPendingSave={docId:vimGuiActiveId,name:name,closeAfter:vimGuiCloseAfterSave};
+    updateVimGuiName();
     document.getElementById('vim-gui-message').textContent='Saving '+name+'…';
+    try {
+      AndroidDownloads.saveBase64File(name,mime,b64,!!saveAs,'python:vim:'+name);
+    } catch(err) {
+      vimGuiSaving=false;vimGuiPendingSave=null;vimGuiCloseAfterSave=false;
+      document.getElementById('vim-gui-message').textContent='Save failed';
+      alert('Save failed: '+(err&&err.message?err.message:String(err)));
+    }
   }else{
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;a.click();URL.revokeObjectURL(a.href);
-    vimGuiFilename=name;vimGuiDirty=false;updateVimGuiName();
+    vimGuiFilename=name;vimGuiDirty=false;
+    if(doc){doc.name=name;doc.content=data;doc.dirty=false;}
+    updateVimGuiName();
   }
 }
 function vimGuiKey(key){
@@ -995,9 +1007,45 @@ function openVimTerminalInfo(){
     window.onNativeDownloadResult = function(success, message, actualFilename) {
         if (success) {
             if (actualFilename) currentFileName = actualFilename;
-            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) { vimGuiSaving = false; vimGuiDirty = false; updateVimGuiName(); document.getElementById('vim-gui-message').textContent = message || 'Saved'; if (vimGuiCloseAfterSave) { vimGuiCloseAfterSave = false; document.getElementById('vim-gui-page').style.display = 'none'; } }
+            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) {
+                const pending = vimGuiPendingSave;
+                vimGuiSaving = false;
+                vimGuiPendingSave = null;
+                if (pending) {
+                    const savedDoc = vimGuiDocs.find(x => x.id === pending.docId);
+                    if (savedDoc) {
+                        savedDoc.name = actualFilename || pending.name;
+                        savedDoc.dirty = false;
+                    }
+                    if (vimGuiActiveId === pending.docId) {
+                        vimGuiFilename = actualFilename || pending.name;
+                        vimGuiDirty = false;
+                        updateVimGuiName();
+                    } else {
+                        renderVimGuiFiles();
+                    }
+                    document.getElementById('vim-gui-message').textContent = message || ('Saved ' + (actualFilename || pending.name));
+                    if (pending.closeAfter) {
+                        vimGuiCloseAfterSave = false;
+                        document.getElementById('vim-gui-page').style.display = 'none';
+                    }
+                }
+            }
             alert(message || ("File saved successfully" + (actualFilename ? ": " + actualFilename : "")));
-        } else if (message && message !== "Save cancelled") { if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) { vimGuiSaving = false; document.getElementById('vim-gui-message').textContent = message; } alert(message); }
+        } else if (message && message !== "Save cancelled") {
+            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) {
+                vimGuiSaving = false;
+                vimGuiPendingSave = null;
+                vimGuiCloseAfterSave = false;
+                document.getElementById('vim-gui-message').textContent = message;
+            }
+            alert(message);
+        } else if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) {
+            vimGuiSaving = false;
+            vimGuiPendingSave = null;
+            vimGuiCloseAfterSave = false;
+            document.getElementById('vim-gui-message').textContent = 'Save cancelled';
+        }
     };
     
     function loadCurrentFile(event) {

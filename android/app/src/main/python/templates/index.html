@@ -592,7 +592,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 </div>
 
 <script>
-let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false;
+let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false, vimGuiCloseAfterSave=false;
 function openVimGui(){
   document.getElementById('mode-menu').style.display='none';
   const page=document.getElementById('vim-gui-page'); page.style.display='block';
@@ -607,7 +607,7 @@ function openVimGui(){
     if(CodeMirror.Vim && CodeMirror.Vim.defineEx){
       CodeMirror.Vim.defineEx('write','w',()=>saveVimGuiFile());
       CodeMirror.Vim.defineEx('quit','q',()=>closeVimGui());
-      CodeMirror.Vim.defineEx('wq','wq',()=>{saveVimGuiFile();closeVimGui();});
+      CodeMirror.Vim.defineEx('wq','wq',()=>{if(vimGuiDirty || !vimGuiFilename){vimGuiCloseAfterSave=true;saveVimGuiFile();}else{closeVimGui();}});
     }
     CodeMirror.on(vimGuiEditor,'vim-mode-change',e=>{
       document.getElementById('vim-gui-mode').textContent=(e&&e.mode?e.mode:'NORMAL').toUpperCase();
@@ -952,7 +952,7 @@ function openVimTerminalInfo(){
     window.onNativeDownloadResult = function(success, message, actualFilename) {
         if (success) {
             if (actualFilename) currentFileName = actualFilename;
-            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) { vimGuiSaving = false; vimGuiDirty = false; updateVimGuiName(); document.getElementById('vim-gui-message').textContent = message || 'Saved'; }
+            if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) { vimGuiSaving = false; vimGuiDirty = false; updateVimGuiName(); document.getElementById('vim-gui-message').textContent = message || 'Saved'; if (vimGuiCloseAfterSave) { vimGuiCloseAfterSave = false; document.getElementById('vim-gui-page').style.display = 'none'; } }
             alert(message || ("File saved successfully" + (actualFilename ? ": " + actualFilename : "")));
         } else if (message && message !== "Save cancelled") { if (typeof vimGuiSaving !== 'undefined' && vimGuiSaving) { vimGuiSaving = false; document.getElementById('vim-gui-message').textContent = message; } alert(message); }
     };

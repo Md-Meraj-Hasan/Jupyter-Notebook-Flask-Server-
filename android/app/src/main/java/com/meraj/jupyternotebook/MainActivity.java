@@ -31,6 +31,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.OutputStream;
 import android.util.Base64;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -204,6 +206,47 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 android.util.Log.e("NiceCodingStorage", "Workspace file sync failed", e);
                 return false;
+            }
+        }
+
+        @JavascriptInterface
+        public String listVimWorkspace(String relativePath) {
+            try {
+                File rootDir = workspaceLocalDir("python").getCanonicalFile();
+                if (!rootDir.exists()) rootDir.mkdirs();
+                File dir = new File(rootDir, relativePath == null ? "" : relativePath).getCanonicalFile();
+                if (!dir.toPath().startsWith(rootDir.toPath()) || !dir.isDirectory()) return "[]";
+                File[] files = dir.listFiles();
+                JSONArray result = new JSONArray();
+                if (files == null) return result.toString();
+                java.util.Arrays.sort(files, (a,b) -> {
+                    if (a.isDirectory() != b.isDirectory()) return a.isDirectory() ? -1 : 1;
+                    return a.getName().compareToIgnoreCase(b.getName());
+                });
+                for (File f : files) {
+                    if (f.isHidden()) continue;
+                    JSONObject item = new JSONObject();
+                    item.put("name", f.getName());
+                    item.put("directory", f.isDirectory());
+                    item.put("size", f.isFile() ? f.length() : 0);
+                    result.put(item);
+                }
+                return result.toString();
+            } catch (Exception e) {
+                return "[]";
+            }
+        }
+
+        @JavascriptInterface
+        public String readVimWorkspaceFile(String relativePath) {
+            try {
+                File rootDir = workspaceLocalDir("python").getCanonicalFile();
+                File file = new File(rootDir, relativePath == null ? "" : relativePath).getCanonicalFile();
+                if (!file.toPath().startsWith(rootDir.toPath()) || !file.isFile() || file.length() > 2 * 1024 * 1024) return null;
+                byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+                return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                return null;
             }
         }
 

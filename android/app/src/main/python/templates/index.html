@@ -708,12 +708,35 @@ function loadVimGuiFile(event){
   reader.onerror=()=>alert('Could not read selected file.');
   reader.readAsText(file);event.target.value='';
 }
+window.onVimWorkspaceSaveResult=function(success, savedPath){
+  const pending=vimGuiPendingSave;if(!pending||pending.kind!=='workspace')return;
+  vimGuiSaving=false;vimGuiPendingSave=null;vimGuiCloseAfterSave=false;
+  const doc=vimGuiDocs.find(x=>x.id===pending.docId);
+  if(success){
+    if(doc){doc.workspacePath=savedPath;doc.name=savedPath.split('/').pop();doc.dirty=false;}
+    if(vimGuiActiveId===pending.docId){vimGuiFilename=pending.name;vimGuiDirty=false;updateVimGuiName();}
+    else renderVimGuiFiles();
+    document.getElementById('vim-gui-message').textContent='Saved in workspace: '+savedPath;
+  }else{
+    document.getElementById('vim-gui-message').textContent='Workspace save failed: '+savedPath;
+    alert('Workspace save failed: '+savedPath);
+  }
+};
 function saveVimGuiFile(saveAs){
   if(!vimGuiEditor)return;
   let name=vimGuiFilename;
   if(saveAs||!name){name=prompt('Save file name:',name||'untitled.txt');if(!name)return;}
   const data=vimGuiEditor.getValue(),mime='text/plain;charset=utf-8';
   const doc=vimGuiDocs.find(x=>x.id===vimGuiActiveId);
+  if(doc&&doc.workspacePath&&window.AndroidDownloads&&typeof AndroidDownloads.saveVimWorkspaceFile==='function'){
+    const b64=btoa(unescape(encodeURIComponent(data)));
+    const path=saveAs?(vimWorkspacePath?vimWorkspacePath+'/'+name:name):doc.workspacePath;
+    vimGuiSaving=true;vimGuiPendingSave={kind:'workspace',docId:vimGuiActiveId,name:name};
+    document.getElementById('vim-gui-message').textContent='Saving '+path+'…';
+    try{AndroidDownloads.saveVimWorkspaceFile(path,b64);}
+    catch(err){vimGuiSaving=false;vimGuiPendingSave=null;document.getElementById('vim-gui-message').textContent='Save failed';alert('Save failed: '+String(err.message||err));}
+    return;
+  }
   if(window.AndroidDownloads&&typeof AndroidDownloads.saveBase64File==='function'){
     const b64=btoa(unescape(encodeURIComponent(data)));
     if(doc){doc.name=name;doc.content=data;}

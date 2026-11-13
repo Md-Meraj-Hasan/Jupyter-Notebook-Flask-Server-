@@ -583,9 +583,10 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
   <div id="vim-gui-tabs" style="height:34px;display:flex;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;background:var(--toolbar-bg);border-bottom:1px solid var(--border-color);"></div>
   <div style="height:calc(100% - 116px);display:flex;min-height:0;">
     <aside style="width:150px;max-width:34vw;display:flex;flex-direction:column;border-right:1px solid var(--border-color);background:var(--toolbar-bg);">
-      <div style="padding:7px;font-size:11px;font-weight:bold;opacity:.75;">OPEN FILES</div>
-      <div id="vim-gui-file-list" style="overflow:auto;flex:1;font-size:12px;"></div>
-      <button class="btn" style="margin:5px;" onclick="document.getElementById('vim-gui-open').click()">＋ Open file</button>
+      <div style="display:flex;gap:4px;padding:5px;"><button class="btn" onclick="showVimPanel('workspace')">WORKSPACE</button><button class="btn" onclick="showVimPanel('opened')">OPEN FILES</button></div>
+      <div id="vim-gui-workspace" style="overflow:auto;flex:1;font-size:12px;"></div>
+      <div id="vim-gui-file-list" style="overflow:auto;flex:1;font-size:12px;display:none;"></div>
+      <div style="display:flex;gap:4px;padding:5px;"><button class="btn" onclick="loadVimWorkspace(vimWorkspacePath)">↻</button><button class="btn" onclick="document.getElementById('vim-gui-open').click()">＋ Open file</button></div>
     </aside>
     <div style="flex:1;min-width:0;"><textarea id="vim-gui-source"></textarea></div>
   </div>
@@ -626,6 +627,7 @@ function openVimGui(){
     });
   }
   if(!vimGuiDocs.length) vimGuiAddDoc('[No Name]','',false);
+  showVimPanel('workspace');loadVimWorkspace('');
   setTimeout(()=>{vimGuiEditor.refresh();vimGuiEditor.focus();},60);
 }
 function closeVimGui(){
@@ -643,6 +645,30 @@ function vimGuiActivateDoc(id){
   if(current){current.content=vimGuiEditor.getValue();current.dirty=vimGuiDirty;}
   vimGuiActiveId=doc.id;vimGuiSwitching=true;vimGuiEditor.setValue(doc.content);vimGuiSwitching=false;
   vimGuiFilename=doc.name==='[No Name]'?'':doc.name;vimGuiDirty=doc.dirty;updateVimGuiName();renderVimGuiFiles();vimGuiEditor.focus();
+}
+let vimWorkspacePath='';
+function showVimPanel(which){
+  const workspace=document.getElementById('vim-gui-workspace'),opened=document.getElementById('vim-gui-file-list');
+  if(workspace)workspace.style.display=which==='workspace'?'block':'none';
+  if(opened)opened.style.display=which==='opened'?'block':'none';
+}
+function loadVimWorkspace(path){
+  vimWorkspacePath=String(path||'').replace(/^\\/+|\\/+$/g,'');
+  const box=document.getElementById('vim-gui-workspace');if(!box)return;
+  box.innerHTML='Loading workspace…';
+  if(!window.AndroidDownloads||typeof AndroidDownloads.listVimWorkspace!=='function'){box.textContent='Workspace browser is available in the Android app.';return;}
+  try{
+    if(typeof AndroidDownloads.syncWorkspaceFiles==='function')AndroidDownloads.syncWorkspaceFiles('python');
+    const entries=JSON.parse(AndroidDownloads.listVimWorkspace(vimWorkspacePath)||'[]');box.innerHTML='';
+    const crumb=document.createElement('div');crumb.style.cssText='padding:7px;font-weight:bold;overflow-wrap:anywhere';crumb.textContent='/NiceCoding/'+vimWorkspacePath;box.appendChild(crumb);
+    if(vimWorkspacePath){const up=document.createElement('button');up.className='btn';up.style.cssText='display:block;width:100%;text-align:left;padding:7px';up.textContent='📁 ..';up.onclick=()=>loadVimWorkspace(vimWorkspacePath.split('/').slice(0,-1).join('/'));box.appendChild(up);}
+    entries.forEach(entry=>{
+      const row=document.createElement('button');row.className='btn';row.style.cssText='display:block;width:100%;text-align:left;padding:7px;border-radius:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';row.textContent=(entry.directory?'📁 ':'📄 ')+entry.name;row.title=entry.name;
+      row.onclick=()=>{const next=vimWorkspacePath?vimWorkspacePath+'/'+entry.name:entry.name;if(entry.directory){loadVimWorkspace(next);return;}const content=AndroidDownloads.readVimWorkspaceFile(next);if(content===null||content===undefined){alert('Cannot open this file. Files over 2 MB or unreadable files are not supported.');return;}vimGuiAddDoc(entry.name,String(content),false);const d=vimGuiDocs.find(x=>x.id===vimGuiActiveId);if(d)d.workspacePath=next;document.getElementById('vim-gui-message').textContent='Opened '+next;};
+      box.appendChild(row);
+    });
+    if(!entries.length){const empty=document.createElement('div');empty.style.cssText='padding:8px;opacity:.65';empty.textContent='This folder is empty';box.appendChild(empty);}
+  }catch(err){box.textContent='Could not load workspace: '+String(err.message||err);}
 }
 function renderVimGuiFiles(){
   const tabs=document.getElementById('vim-gui-tabs'),list=document.getElementById('vim-gui-file-list');

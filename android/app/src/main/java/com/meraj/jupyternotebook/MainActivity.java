@@ -254,7 +254,7 @@ public class MainActivity extends Activity {
         public void saveVimWorkspaceFile(String relativePath, String base64Data) {
             try {
                 byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
-                String rel = relativePath == null ? "" : relativePath.replace('\\\\', '/');
+                String rel = relativePath == null ? "" : relativePath.replace('\\', '/');
                 File rootDir = workspaceLocalDir("python").getCanonicalFile();
                 File target = new File(rootDir, rel).getCanonicalFile();
                 if (!target.toPath().startsWith(rootDir.toPath()) || target.equals(rootDir))

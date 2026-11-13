@@ -580,8 +580,14 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
     <button class="btn" onclick="saveVimGuiFile()">Save</button>
     <button class="btn" onclick="saveVimGuiFile(true)">Save As</button>
   </div>
-  <div style="height:calc(100% - 82px);">
-    <textarea id="vim-gui-source"></textarea>
+  <div id="vim-gui-tabs" style="height:34px;display:flex;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;background:var(--toolbar-bg);border-bottom:1px solid var(--border-color);"></div>
+  <div style="height:calc(100% - 116px);display:flex;min-height:0;">
+    <aside style="width:150px;max-width:34vw;display:flex;flex-direction:column;border-right:1px solid var(--border-color);background:var(--toolbar-bg);">
+      <div style="padding:7px;font-size:11px;font-weight:bold;opacity:.75;">OPEN FILES</div>
+      <div id="vim-gui-file-list" style="overflow:auto;flex:1;font-size:12px;"></div>
+      <button class="btn" style="margin:5px;" onclick="document.getElementById('vim-gui-open').click()">＋ Open file</button>
+    </aside>
+    <div style="flex:1;min-width:0;"><textarea id="vim-gui-source"></textarea></div>
   </div>
   <div style="height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--toolbar-bg);border-top:1px solid var(--border-color);font:12px monospace;">
     <span id="vim-gui-mode">NORMAL</span><span id="vim-gui-message" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Vim keybindings ready</span>
@@ -592,7 +598,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 </div>
 
 <script>
-let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false, vimGuiCloseAfterSave=false;
+let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false, vimGuiSaving=false, vimGuiCloseAfterSave=false, vimGuiSwitching=false, vimGuiDocs=[], vimGuiActiveId=0, vimGuiNextId=1;
 function openVimGui(){
   document.getElementById('mode-menu').style.display='none';
   const page=document.getElementById('vim-gui-page'); page.style.display='block';
@@ -602,7 +608,7 @@ function openVimGui(){
       keyMap:'vim',theme:document.body.classList.contains('night-mode')?'material-darker':'neo',
       lineWrapping:false,indentUnit:4,tabSize:4,viewportMargin:20
     });
-    vimGuiEditor.on('change',()=>{vimGuiDirty=true;updateVimGuiName();});
+    vimGuiEditor.on('change',()=>{if(vimGuiSwitching)return;vimGuiDirty=true;const d=vimGuiDocs.find(x=>x.id===vimGuiActiveId);if(d){d.content=vimGuiEditor.getValue();d.dirty=true;}updateVimGuiName();renderVimGuiFiles();});
     CodeMirror.commands.save=()=>saveVimGuiFile();
     if(CodeMirror.Vim && CodeMirror.Vim.defineEx){
       CodeMirror.Vim.defineEx('write','w',()=>saveVimGuiFile());
@@ -619,23 +625,59 @@ function openVimGui(){
       document.getElementById('vim-gui-message').textContent='Ready';
     });
   }
+  if(!vimGuiDocs.length) vimGuiAddDoc('[No Name]','',false);
   setTimeout(()=>{vimGuiEditor.refresh();vimGuiEditor.focus();},60);
 }
 function closeVimGui(){
   if(vimGuiDirty && !confirm('Unsaved changes. Close Vim GUI?')) return;
   document.getElementById('vim-gui-page').style.display='none';
 }
+function vimGuiAddDoc(name,content,dirty){
+  const doc={id:vimGuiNextId++,name:name||'[No Name]',content:content||'',dirty:!!dirty};
+  vimGuiDocs.push(doc);vimGuiActivateDoc(doc.id);return doc;
+}
+function vimGuiActivateDoc(id){
+  const doc=vimGuiDocs.find(x=>x.id===id);if(!doc||!vimGuiEditor)return;
+  const current=vimGuiDocs.find(x=>x.id===vimGuiActiveId);
+  if(current){current.content=vimGuiEditor.getValue();current.dirty=vimGuiDirty;}
+  vimGuiActiveId=doc.id;vimGuiSwitching=true;vimGuiEditor.setValue(doc.content);vimGuiSwitching=false;
+  vimGuiFilename=doc.name==='[No Name]'?'':doc.name;vimGuiDirty=doc.dirty;updateVimGuiName();renderVimGuiFiles();vimGuiEditor.focus();
+}
+function renderVimGuiFiles(){
+  const tabs=document.getElementById('vim-gui-tabs'),list=document.getElementById('vim-gui-file-list');
+  if(!tabs||!list)return;
+  tabs.innerHTML='';list.innerHTML='';
+  vimGuiDocs.forEach(doc=>{
+    const active=doc.id===vimGuiActiveId;
+    const tab=document.createElement('button');tab.className='btn';tab.style.cssText='white-space:nowrap;padding:4px 7px;'+(active?'font-weight:bold;border-bottom:2px solid #3987e8;':'opacity:.75;');
+    tab.textContent=(doc.name||'[No Name]')+(doc.dirty?' •':'')+' ×';
+    tab.onclick=()=>{if(active){vimGuiCloseDoc(doc.id);}else{vimGuiActivateDoc(doc.id);}};
+    tabs.appendChild(tab);
+    const item=document.createElement('button');item.className='btn';item.style.cssText='display:block;width:100%;text-align:left;border-radius:0;padding:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+(active?'font-weight:bold;':'');
+    item.textContent=(doc.dirty?'● ':'')+doc.name;item.title=doc.name;item.onclick=()=>vimGuiActivateDoc(doc.id);list.appendChild(item);
+  });
+}
+function vimGuiCloseDoc(id){
+  const doc=vimGuiDocs.find(x=>x.id===id);if(!doc)return;
+  if(doc.dirty&&!confirm('Discard unsaved changes in '+doc.name+'?'))return;
+  vimGuiDocs=vimGuiDocs.filter(x=>x.id!==id);
+  if(vimGuiActiveId===id){const next=vimGuiDocs[vimGuiDocs.length-1];if(next)vimGuiActivateDoc(next.id);else{vimGuiActiveId=0;vimGuiSwitching=true;vimGuiEditor.setValue('');vimGuiSwitching=false;vimGuiFilename='';vimGuiDirty=false;}}
+  renderVimGuiFiles();updateVimGuiName();
+}
 function updateVimGuiName(){
+  const doc=vimGuiDocs.find(x=>x.id===vimGuiActiveId);
   document.getElementById('vim-gui-filename').textContent=(vimGuiFilename||'[No Name]')+(vimGuiDirty?' •':'');
+  if(doc){doc.name=vimGuiFilename||'[No Name]';doc.content=vimGuiEditor?vimGuiEditor.getValue():doc.content;doc.dirty=vimGuiDirty;}
+  renderVimGuiFiles();
 }
 function newVimGuiFile(){
   if(vimGuiDirty && !confirm('Discard unsaved changes?')) return;
-  vimGuiEditor.setValue('');vimGuiFilename='';vimGuiDirty=false;updateVimGuiName();vimGuiEditor.focus();
+  vimGuiAddDoc('[No Name]','',false);
 }
 function loadVimGuiFile(event){
   const file=event.target.files&&event.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=()=>{vimGuiEditor.setValue(String(reader.result||''));vimGuiFilename=file.name;vimGuiDirty=false;updateVimGuiName();document.getElementById('vim-gui-message').textContent='Opened '+file.name;vimGuiEditor.focus();};
+  reader.onload=()=>{vimGuiAddDoc(file.name,String(reader.result||''),false);document.getElementById('vim-gui-message').textContent='Opened '+file.name;vimGuiEditor.focus();};
   reader.onerror=()=>alert('Could not read selected file.');
   reader.readAsText(file);event.target.value='';
 }

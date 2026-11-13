@@ -13,9 +13,28 @@
 
 Chaquopy documents `tkinter` as unsupported because its Android runtime does not include the required Tcl/Tk libraries. Adding `pip install tkinter` is not a solution: Tkinter is a Python standard-library wrapper around the native Tcl/Tk runtime, not a normal pure-Python pip package.
 
-## Candidate native runtime
+## Candidate native runtime — research findings
 
-Investigate AndroWish / SDLTk as the Tcl/Tk-on-Android foundation. It provides an Android port of Tcl/Tk and an SDL-based window/rendering backend. Before embedding any binaries or source, verify its current source availability, ABI coverage, license obligations, Android SDK/NDK compatibility, and whether its Tcl/Tk interpreter and Tk window/event loop can be embedded in this Activity rather than launched as a separate app.
+AndroWish is a real Android port of Tcl/Tk 8.6.10, using SDL 2.0.6 plus AGG/Freetype. Its 2024 release provides prebuilt APKs for `armeabi-v7a`, `arm64-v8a`, and `x86_64`. The upstream project describes its architecture as a Java Activity + JNI + native Tcl/Tk/SDL libraries, and documents that its runtime assets and modified Java glue can be reused by other apps.
+
+Important integration risks discovered:
+
+- AndroWish is a Tcl/Tk application runtime, not a CPython `_tkinter` extension. Reusing its APK assets alone will not make `import tkinter` work in Chaquopy.
+- The AndroWish port uses SDL/AGG/Freetype and its own Android Activity/event dispatch. It must be hosted or embedded deliberately; simply copying `.so` files into `jniLibs` is insufficient.
+- Upstream warns that some builds use a modified Tcl Unicode representation (`TCL_UTF_MAX=6`) which is not binary-compatible with standard Tcl/Tk (`TCL_UTF_MAX=3`). The exact 2024 build configuration must be checked before compiling `_tkinter`.
+- NiceCoding currently targets Android API 35 and uses Chaquopy 17.1.0 / CPython 3.10. The upstream AndroWish source/build system is older and must be adapted and validated against the current NDK/Gradle toolchain.
+- The official Python Android platform guidance lists `tkinter` as unsupported by default because Android does not officially provide Tk; a custom port is required.
+
+**Decision:** AndroWish is the strongest concrete Tcl/Tk Android foundation found so far, but a Python bridge has not yet been proven. Do not add its prebuilt APK or native libraries to NiceCoding until a minimal in-process Tcl/Tk + CPython 3.10 bridge is demonstrated.
+
+## Next technical spike
+
+1. Obtain and inspect the exact 2024 AndroWish source release and its license files.
+2. Identify whether the bundled Tcl/Tk build uses standard or modified Unicode ABI and locate the Tcl/Tk C headers and exported symbols.
+3. Build a tiny Android NDK test library for the existing `arm64-v8a` ABI first, exposing Tcl interpreter create/eval/destroy through JNI.
+4. Separately compile a CPython 3.10 `_tkinter` extension against that exact Tcl/Tk build; do not mix a stock Tcl/Tk extension with an incompatible AndroWish Tcl ABI.
+5. Prove `import tkinter`, `Tk()`, widget creation, event-loop pumping, callbacks, and clean shutdown in a throwaway test Activity before touching NiceCoding's MainActivity or Flask route.
+6. Only after arm64 succeeds, repeat for `armeabi-v7a` and add the integration as an optional GUI runner.
 
 ## Proposed implementation stages
 

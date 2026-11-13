@@ -656,8 +656,8 @@ function saveVimGuiFile(saveAs){
 }
 function vimGuiKey(key){
   if(!vimGuiEditor)return;
-  if(key==='Escape')vimGuiEditor.triggerOnKeyDown({key:'Escape',keyCode:27,which:27});
-  else if(key===':'){vimGuiEditor.focus();vimGuiEditor.replaceSelection(':');}
+  if(key==='Escape')CodeMirror.Vim.handleKey(vimGuiEditor,'<Esc>');
+  else if(key===':')CodeMirror.Vim.handleKey(vimGuiEditor,':');
 }
 function openVimTerminalInfo(){
   document.getElementById('mode-menu').style.display='none';

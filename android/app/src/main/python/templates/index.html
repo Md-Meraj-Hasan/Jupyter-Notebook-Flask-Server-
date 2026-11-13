@@ -324,6 +324,11 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 <script>
 (function(){if(!window.CodeMirror)return;CodeMirror.defineMode("sql",function(){var keywords=/^(SELECT|FROM|WHERE|AND|OR|NOT|NULL|IS|IN|LIKE|GLOB|BETWEEN|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AS|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|DISTINCT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|IF|EXISTS|DROP|ALTER|ADD|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|INDEX|VIEW|TRIGGER|DATABASE|PRAGMA|BEGIN|COMMIT|ROLLBACK|TRANSACTION|AUTOINCREMENT|DEFAULT|CHECK|CASE|WHEN|THEN|ELSE|END|UNION|ALL|COUNT|SUM|AVG|MIN|MAX|ASC|DESC|WITH)\b/i;return {token:function(stream){if(stream.eatSpace())return null;if(stream.match(/--.*/))return "comment";if(stream.match(/\/\*[\s\S]*?\*\//))return "comment";if(stream.match(/'(?:''|[^'])*'/))return "string";if(stream.match(/"(?:""|[^"])*"/))return "string";if(stream.match(/`[^`]*`/))return "string";if(stream.match(/\b\d+(?:\.\d+)?\b/))return "number";if(stream.match(keywords))return "keyword";if(stream.match(/[(),.;*+\/-]/))return "operator";stream.next();return null;}};});})();
 </script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vim-dialog.css') }}">
+<script src="{{ url_for('static', filename='js/vim-searchcursor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vim-dialog.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vim-keymap.js') }}"></script>
 </head>
 <body>
 
@@ -347,6 +352,8 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         <div onclick="selectWorkspace('python')">🐍 Python</div>
         <div onclick="selectWorkspace('web')">🌐 HTML, CSS &amp; JavaScript</div>
         <div onclick="selectWorkspace('sqlite')">🗄️ SQLite3 / SQL</div>
+        <div onclick="openVimGui()">⌨️ Vim GUI Editor</div>
+        <div onclick="openVimTerminalInfo()">▣ Vim Terminal (Native)</div>
       </div>
     </div>
     <button id="top-run-btn" onclick="runScript()" title="Run current code" aria-label="Run current code">▶ Run</button>
@@ -560,7 +567,103 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
                 ? doc.replace(/<head([^>]*)>/i, `<head$1>${styleTag}`)
                 : doc.replace(/<html([^>]*)>/i, `<html$1><head>${styleTag}</head>`);
         } else {
-            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag}</head><body>${doc}</body></html>`;
+            rendered = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${styleTag}</head><body>${doc}
+<div id="vim-gui-page" style="display:none;position:fixed;inset:0;z-index:30000;background:var(--bg-body);color:var(--text-main);">
+  <div style="height:48px;display:flex;align-items:center;gap:6px;padding:4px 8px;box-sizing:border-box;background:var(--toolbar-bg);border-bottom:1px solid var(--border-color);overflow-x:auto;">
+    <button class="btn" onclick="closeVimGui()">← Back</button>
+    <strong style="white-space:nowrap">Vim GUI</strong>
+    <span id="vim-gui-filename" style="font-size:12px;opacity:.75;white-space:nowrap">[No Name]</span>
+    <span style="flex:1"></span>
+    <button class="btn" onclick="newVimGuiFile()">New</button>
+    <button class="btn" onclick="document.getElementById('vim-gui-open').click()">Open</button>
+    <button class="btn" onclick="saveVimGuiFile()">Save</button>
+    <button class="btn" onclick="saveVimGuiFile(true)">Save As</button>
+  </div>
+  <div style="height:calc(100% - 82px);">
+    <textarea id="vim-gui-source"></textarea>
+  </div>
+  <div style="height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--toolbar-bg);border-top:1px solid var(--border-color);font:12px monospace;">
+    <span id="vim-gui-mode">NORMAL</span><span id="vim-gui-message" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Vim keybindings ready</span>
+    <button class="btn" onclick="vimGuiKey('Escape')">Esc</button>
+    <button class="btn" onclick="vimGuiKey(':')">:</button>
+  </div>
+  <input id="vim-gui-open" type="file" style="display:none" onchange="loadVimGuiFile(event)">
+</div>
+
+<script>
+let vimGuiEditor=null, vimGuiFilename='', vimGuiDirty=false;
+function openVimGui(){
+  document.getElementById('mode-menu').style.display='none';
+  const page=document.getElementById('vim-gui-page'); page.style.display='block';
+  if(!vimGuiEditor){
+    vimGuiEditor=CodeMirror.fromTextArea(document.getElementById('vim-gui-source'),{
+      lineNumbers:true,matchBrackets:true,styleActiveLine:true,showCursorWhenSelecting:true,
+      keyMap:'vim',theme:document.body.classList.contains('night-mode')?'material-darker':'neo',
+      lineWrapping:false,indentUnit:4,tabSize:4,viewportMargin:20
+    });
+    vimGuiEditor.on('change',()=>{vimGuiDirty=true;updateVimGuiName();});
+    CodeMirror.commands.save=()=>saveVimGuiFile();
+    if(CodeMirror.Vim && CodeMirror.Vim.defineEx){
+      CodeMirror.Vim.defineEx('write','w',()=>saveVimGuiFile());
+      CodeMirror.Vim.defineEx('quit','q',()=>closeVimGui());
+      CodeMirror.Vim.defineEx('wq','wq',()=>{saveVimGuiFile();closeVimGui();});
+    }
+    CodeMirror.on(vimGuiEditor,'vim-mode-change',e=>{
+      document.getElementById('vim-gui-mode').textContent=(e&&e.mode?e.mode:'NORMAL').toUpperCase();
+    });
+    CodeMirror.on(vimGuiEditor,'vim-keypress',key=>{
+      document.getElementById('vim-gui-message').textContent='Key: '+key;
+    });
+    CodeMirror.on(vimGuiEditor,'vim-command-done',()=>{
+      document.getElementById('vim-gui-message').textContent='Ready';
+    });
+  }
+  setTimeout(()=>{vimGuiEditor.refresh();vimGuiEditor.focus();},60);
+}
+function closeVimGui(){
+  if(vimGuiDirty && !confirm('Unsaved changes. Close Vim GUI?')) return;
+  document.getElementById('vim-gui-page').style.display='none';
+}
+function updateVimGuiName(){
+  document.getElementById('vim-gui-filename').textContent=(vimGuiFilename||'[No Name]')+(vimGuiDirty?' •':'');
+}
+function newVimGuiFile(){
+  if(vimGuiDirty && !confirm('Discard unsaved changes?')) return;
+  vimGuiEditor.setValue('');vimGuiFilename='';vimGuiDirty=false;updateVimGuiName();vimGuiEditor.focus();
+}
+function loadVimGuiFile(event){
+  const file=event.target.files&&event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{vimGuiEditor.setValue(String(reader.result||''));vimGuiFilename=file.name;vimGuiDirty=false;updateVimGuiName();document.getElementById('vim-gui-message').textContent='Opened '+file.name;vimGuiEditor.focus();};
+  reader.onerror=()=>alert('Could not read selected file.');
+  reader.readAsText(file);event.target.value='';
+}
+function saveVimGuiFile(saveAs){
+  if(!vimGuiEditor)return;
+  let name=vimGuiFilename;
+  if(saveAs||!name){name=prompt('Save file name:',name||'untitled.txt');if(!name)return;}
+  const data=vimGuiEditor.getValue(),mime='text/plain;charset=utf-8';
+  if(window.AndroidDownloads&&typeof AndroidDownloads.saveBase64File==='function'){
+    const b64=btoa(unescape(encodeURIComponent(data)));
+    AndroidDownloads.saveBase64File(name,mime,b64,!!saveAs,'python:vim:'+name);
+    vimGuiFilename=name;vimGuiDirty=false;updateVimGuiName();
+    document.getElementById('vim-gui-message').textContent='Saving '+name+'…';
+  }else{
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;a.click();URL.revokeObjectURL(a.href);
+    vimGuiFilename=name;vimGuiDirty=false;updateVimGuiName();
+  }
+}
+function vimGuiKey(key){
+  if(!vimGuiEditor)return;
+  if(key==='Escape')vimGuiEditor.triggerOnKeyDown({key:'Escape',keyCode:27,which:27});
+  else if(key===':'){vimGuiEditor.focus();vimGuiEditor.replaceSelection(':');}
+}
+function openVimTerminalInfo(){
+  document.getElementById('mode-menu').style.display='none';
+  alert('Vim Terminal needs a native Android Vim binary and PTY terminal runtime. This device build does not include those yet; the Vim GUI editor is available.');
+}
+</script>
+</body></html>`;
         }
         frame.srcdoc = rendered;
         outputDiv.appendChild(frame);

@@ -1,0 +1,24 @@
+NiceCoding Vim integration repair
+=================================
+
+Problem found in the Android-served Notebook template:
+- The Vim GUI HTML and its JavaScript had been inserted inside the JavaScript template literal used by renderWebPreview().
+- The raw <script> opening tag inside that template literal was still visible to the browser's HTML parser. It prematurely closed the main application script block.
+- As a result, the remainder of the main app JavaScript was parsed as page text rather than executable code. This could break Notebook/workspace menus and leave JavaScript source visible in the page.
+- The Vim GUI elements were also inside the preview iframe HTML string instead of the main app DOM, so openVimGui() could not reliably find its elements.
+
+Repair applied:
+- Moved the Vim GUI HTML out of the preview template and into the main page DOM.
+- Moved the Vim GUI functions into the main application JavaScript block.
+- Kept the HTML/CSS preview template limited to the user's preview document.
+- Corrected the workspace path regular expression after moving the code out of a template literal.
+- Did not change MainActivity.java, the Flask backend, workspace routing, or the existing Notebook/workspace implementation.
+
+Validation performed:
+- Main inline JavaScript extracted and passed `node --check`.
+- Android Flask Python modules passed `python -m py_compile`.
+- HTML source has matching script opening and closing tag counts (9 each).
+- Verified Vim Android bridge methods referenced by the UI exist in MainActivity.java.
+
+Not performed:
+- Android Gradle/APK build and on-device UI test were not available in this environment.

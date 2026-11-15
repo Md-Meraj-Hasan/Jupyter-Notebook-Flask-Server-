@@ -339,7 +339,6 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
             <div onclick="newNotebook()">📄 New</div>
             <div onclick="openCurrentFile()">📂 Open</div>
             <div onclick="setupNiceCodingStorage()">📁 Setup Downloads/NiceCoding</div>
-            <div onclick="showLibraryManager()">📦 Python Libraries / Install Status</div>
             <div onclick="openSqliteDatabase()">🗄️ Open Database (.db)</div>
             <div onclick="saveCurrentFile(false)">💾 Save</div>
             <div onclick="saveCurrentFile(true)">📝 Save As</div>
@@ -490,37 +489,6 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
 
 
 <script>
-    async function showLibraryManager() {
-        const panel = document.getElementById('library-manager');
-        const list = document.getElementById('library-manager-list');
-        const message = document.getElementById('library-manager-message');
-        panel.style.display = 'flex';
-        list.innerHTML = '<div style="padding:12px">Checking installed Python libraries…</div>';
-        message.textContent = '';
-        try {
-            const response = await fetch('/packages/status', {cache:'no-store'});
-            const data = await response.json();
-            if (!response.ok || !data.ok) throw new Error(data.error || 'Library status request failed');
-            list.innerHTML = '';
-            (data.packages || []).forEach(pkg => {
-                const row = document.createElement('div');
-                row.style.cssText = 'display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-bottom:1px solid var(--border-color);font-size:13px';
-                const name = document.createElement('span'); name.textContent = pkg.name;
-                const state = document.createElement('strong');
-                state.textContent = pkg.installed ? '✓ Installed' : '✕ Not bundled';
-                state.style.color = pkg.installed ? '#16a34a' : '#dc6b38';
-                row.append(name,state); list.appendChild(row);
-            });
-            message.textContent = data.message || 'Library status loaded.';
-        } catch (error) {
-            list.textContent = 'Could not check libraries: ' + (error.message || error);
-            message.textContent = 'Check that the local NiceCoding Flask server is running.';
-        }
-    }
-    function closeLibraryManager() {
-        document.getElementById('library-manager').style.display = 'none';
-    }
-
     let cellCount = 0;
     let editors = {};
     let lastFocusedEditor = null;
@@ -540,8 +508,7 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         const fab = document.getElementById('fab-btn');
         if (window.visualViewport) {
             const viewport = window.visualViewport;
-            const effectiveHeight = Math.min(viewport.height || window.innerHeight, window.innerHeight || viewport.height);
-            const isKeyboardOpen = effectiveHeight < initialHeight * 0.9;
+            const isKeyboardOpen = viewport.height < initialHeight * 0.9;
             // Keep the original toolbar behavior in Notebook/Python/HTML/CSS.
             // The only added rule is to hide it while the dedicated output page is visible.
             const outputPage = document.getElementById('coding-output-page');
@@ -595,15 +562,6 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         window.visualViewport.addEventListener('resize', syncToolbar);
         window.visualViewport.addEventListener('scroll', syncToolbar);
     }
-    // Re-evaluate the symbol/tools keyboard whenever a CodeMirror editor receives focus.
-    // Android WebView sometimes resizes innerHeight before visualViewport emits resize.
-    document.addEventListener('focusin', event => {
-        if (event.target.closest('.CodeMirror, textarea, input')) {
-            setTimeout(syncToolbar, 80);
-            setTimeout(syncToolbar, 260);
-        }
-    });
-    window.addEventListener('resize', syncToolbar);
 
     function addNewCell(content = "", language = null) {
         cellCount++;
@@ -1334,26 +1292,12 @@ CodeMirror.defineMode("javascript", function(){ return {startState:function(){re
         output.textContent = "";
         lastConsoleOutput = "";
         try {
-            // Sync the selected Downloads/NiceCoding/Python folder before every run.
-            // This prevents relative CSV/model/config paths from failing with FileNotFoundError.
-            if (window.AndroidDownloads && typeof window.AndroidDownloads.syncWorkspaceFiles === "function") {
-                const synced = window.AndroidDownloads.syncWorkspaceFiles("python");
-                if (synced === false) {
-                    throw new Error("Python workspace sync failed. Open File → Setup Downloads/NiceCoding, select Downloads, and keep your script/data files in NiceCoding/Python.");
-                }
-            }
             const res = await fetch('/code/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:scriptEditor.getValue()})});
-            let data;
-            try { data = await res.json(); }
-            catch (_) { throw new Error("Python server returned an invalid response. Close and reopen NiceCoding, then try Run again."); }
-            if (!res.ok) throw new Error(data.error || ("Could not start script (HTTP " + res.status + ")"));
-            if (!data.job_id) throw new Error(data.error || "Python server did not create an execution session.");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not start script");
             activeJobId = data.job_id;
             pollScriptStatus();
-        } catch (e) {
-            output.textContent = "Run failed: " + (e && e.message ? e.message : String(e));
-            document.getElementById("console-terminal").scrollTop = 0;
-        }
+        } catch (e) { output.textContent = "Error: " + e.message; }
     }
 
     async function pollScriptStatus() {
@@ -1621,16 +1565,6 @@ function openVimTerminalInfo(){
         addNewCell();
     }
 </script>
-<div id="library-manager" style="display:none;position:fixed;inset:0;z-index:40000;background:#0009;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
-  <section style="width:min(520px,100%);max-height:85vh;display:flex;flex-direction:column;background:var(--bg-body);color:var(--text-main);border:1px solid var(--border-color);border-radius:12px;overflow:hidden;box-shadow:0 12px 40px #0007">
-    <header style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--toolbar-bg);border-bottom:1px solid var(--border-color)">
-      <strong style="flex:1">📦 Python Libraries</strong><button class="btn" onclick="closeLibraryManager()">Close</button>
-    </header>
-    <div id="library-manager-list" style="overflow:auto;min-height:100px"></div>
-    <div id="library-manager-message" style="padding:12px;font-size:12px;line-height:1.5;color:var(--terminal-muted)"></div>
-  </section>
-</div>
-
 </body>
 </html>
 

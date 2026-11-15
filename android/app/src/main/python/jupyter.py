@@ -310,8 +310,38 @@ def code_cancel(job_id):
 def index():
     return render_template("index.html")
 
-@app.route("/suggest", methods=["POST"])
-@app.route("/suggest", methods=["POST"])
+
+# Runtime package inventory for the in-app Library Manager.
+# Chaquopy packages are bundled at APK build time; this endpoint reports what
+# is actually importable on this device instead of pretending pip install ran.
+_PACKAGE_MODULES = {
+    "Flask": "flask", "Waitress": "waitress", "NumPy": "numpy",
+    "Pandas": "pandas", "SciPy": "scipy", "Matplotlib": "matplotlib",
+    "Seaborn": "seaborn", "Pillow": "PIL", "scikit-learn": "sklearn",
+    "Joblib": "joblib", "MLxtend": "mlxtend", "Statsmodels": "statsmodels",
+    "SymPy": "sympy", "NetworkX": "networkx", "OpenPyXL": "openpyxl",
+    "XlsxWriter": "xlsxwriter", "xlrd": "xlrd", "Requests": "requests",
+    "aiohttp": "aiohttp", "FastAPI": "fastapi", "Uvicorn": "uvicorn",
+    "BeautifulSoup4": "bs4", "Cryptography": "cryptography",
+    "python-dateutil": "dateutil", "pytz": "pytz", "tzdata": "tzdata",
+    "Packaging": "packaging", "tqdm": "tqdm", "Colorama": "colorama",
+}
+
+@app.route("/packages/status", methods=["GET"])
+def package_status():
+    import importlib.util
+    packages = []
+    for label, module_name in _PACKAGE_MODULES.items():
+        try:
+            installed = importlib.util.find_spec(module_name) is not None
+        except (ImportError, ValueError, AttributeError):
+            installed = False
+        packages.append({"name": label, "module": module_name,
+                         "installed": bool(installed),
+                         "source": "APK bundle" if installed else "Not bundled"})
+    return jsonify({"ok": True, "packages": packages,
+                    "install_mode": "chaquopy-build-time",
+                    "message": "Python libraries are bundled when the APK is built. Missing packages must be added to android/app/build.gradle and the APK rebuilt."})
 
 @app.route("/run", methods=["POST"])
 def run_code():

@@ -65,7 +65,6 @@ chaquopy {
             install("filetype")
             install("python-dateutil")
             install("pytz")
-            install("tzdata")
             install("packaging")
             install("tqdm")
             install("colorama")
